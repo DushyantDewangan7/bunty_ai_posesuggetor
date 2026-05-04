@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "aiposedetector",
-    "slug": "aiposedetector",
+    "name": "AI Pose Suggestor",
+    "slug": "aiposesuggestor",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,18 +13,40 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.growthbyte.aiposesuggestor",
+      "infoPlist": {
+        "NSCameraUsageDescription": "AI Pose Suggestor needs camera access to suggest poses based on your body and surroundings. Your camera frames never leave your device.",
+        "NSLocationWhenInUseUsageDescription": "AI Pose Suggestor uses your location to suggest poses curated for landmarks near you. Your location is never uploaded."
+      }
     },
     "android": {
+      "package": "com.growthbyte.aiposesuggestor",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-dev-client",
+      "react-native-permissions",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "AI Pose Suggestor uses your location to suggest poses curated for landmarks near you. Your location is never uploaded."
+        }
+      ]
+    ]
   }
 }

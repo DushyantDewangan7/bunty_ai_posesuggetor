@@ -1,0 +1,152 @@
+import { Canvas } from '@shopify/react-native-skia';
+import { useEffect } from 'react';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { openSettings } from 'react-native-permissions';
+import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+
+import { usePoseLandmarkerOutput } from '../../camera/usePoseLandmarkerOutput';
+import { usePoseStream } from '../../state/poseStream';
+import { MockPoseControls } from '../components/MockPoseControls';
+import { PoseSkeleton } from '../overlays/PoseSkeleton';
+
+const CAMERA_RATIONALE =
+  'AI Pose Suggestor needs camera access to suggest poses based on your body and surroundings. Your camera frames never leave your device.';
+
+const handleOpenSettings = (): void => {
+  openSettings().catch(() => {
+    Linking.openSettings().catch(() => {
+      // Best effort; nothing further to do if both paths fail.
+    });
+  });
+};
+
+export function CameraScreen(): React.JSX.Element {
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const device = useCameraDevice('back');
+
+  // Output-attached MediaPipe pose detector. Inference runs on the analyzer
+  // thread inside HybridPoseLandmarkerOutput (no worklet, no JSI host-function
+  // dispatch from the worklet runtime). Per ADR-001 G14, 2026-05-03.
+  const poseOutput = usePoseLandmarkerOutput();
+
+  useEffect(() => {
+    if (!hasPermission) {
+      void requestPermission();
+    }
+  }, [hasPermission, requestPermission]);
+
+  if (!hasPermission) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.title}>Permission required</Text>
+        <Text style={styles.body}>{CAMERA_RATIONALE}</Text>
+        <Pressable style={styles.button} onPress={handleOpenSettings}>
+          <Text style={styles.buttonLabel}>Open Settings</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (device == null) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.title}>No camera available</Text>
+        <Text style={styles.body}>
+          This device does not expose a back camera. Try running on a physical Android device.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Camera
+        style={StyleSheet.absoluteFill}
+        device={device}
+        isActive={true}
+        outputs={[poseOutput]}
+      />
+      <Canvas style={StyleSheet.absoluteFill}>
+        <PoseSkeleton mirrored={false} />
+      </Canvas>
+      <MockPoseControls />
+      <DebugOverlay />
+    </View>
+  );
+}
+
+function DebugOverlay(): React.JSX.Element {
+  const isDetecting = usePoseStream((s) => s.isDetecting);
+  const fps = usePoseStream((s) => s.fps);
+  const latestFrame = usePoseStream((s) => s.latestFrame);
+
+  const inferenceMs = latestFrame?.inferenceMs ?? 0;
+  const nose = latestFrame?.landmarks?.[0];
+
+  return (
+    <View style={styles.debug} pointerEvents="none">
+      <Text style={styles.debugLine}>{isDetecting ? 'Detecting' : 'No person'}</Text>
+      <Text style={styles.debugLine}>fps : {fps.toFixed(1)}</Text>
+      <Text style={styles.debugLine}>infer : {inferenceMs.toFixed(1)} ms</Text>
+      {nose ? (
+        <Text style={styles.debugLine}>
+          nose : x={nose.x.toFixed(2)} y={nose.y.toFixed(2)}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  centered: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  body: {
+    color: '#ddd',
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  buttonLabel: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  debug: {
+    position: 'absolute',
+    top: 48,
+    left: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 4,
+  },
+  debugLine: {
+    color: '#fff',
+    fontFamily: Platform.select({ android: 'monospace', ios: 'Menlo' }),
+    fontSize: 12,
+    lineHeight: 16,
+  },
+});

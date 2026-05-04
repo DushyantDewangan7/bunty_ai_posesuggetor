@@ -1,0 +1,41 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+  }
+}
+
+// Force every Android subproject to use the same NDK version that the
+// root project exposes (set by the Expo / React Native gradle plugins).
+// Some libraries (e.g. react-native-worklets-core@1.6.3) don't read
+// rootProject.ext.ndkVersion themselves and fall back to AGP's compile-time
+// default (27.0.12077973), which mismatches our installed NDK r27b
+// (27.1.12297006) configured via local.properties → [CXX1104].
+//
+// Must be registered BEFORE the expo / react rootproject plugins are applied
+// because those evaluate subprojects eagerly.
+subprojects { subproject ->
+  subproject.afterEvaluate {
+    if (subproject.hasProperty("android") && rootProject.ext.has("ndkVersion")) {
+      subproject.android.ndkVersion = rootProject.ext.ndkVersion
+    }
+  }
+}
+
+apply plugin: "expo-root-project"
+apply plugin: "com.facebook.react.rootproject"

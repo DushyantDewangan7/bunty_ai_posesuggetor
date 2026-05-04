@@ -1,0 +1,98 @@
+apply plugin: "com.android.library"
+apply plugin: "org.jetbrains.kotlin.android"
+
+android {
+    namespace 'com.margelo.nitro.aiposesuggestor.poseplugin'
+
+    compileSdk rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    ndkVersion rootProject.ext.ndkVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+
+        // Constrain native builds to arm64-v8a, matching `reactNativeArchitectures`
+        // in android/gradle.properties. RN's NitroModules and Vision Camera
+        // prefabs ship arm64-v8a binaries only on this project — building
+        // armeabi-v7a/x86/x86_64 fails at link time with undefined symbols
+        // from margelo::nitro::* and margelo::nitro::camera::*. RN's
+        // NdkConfiguratorUtils auto-applies this filter to the module the
+        // `com.facebook.react` plugin is applied to (i.e. :app); for
+        // :poseplugin we set it explicitly.
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+
+        // Match the STL flavor used by RN's react-android prefabs (especially
+        // ReactAndroid::hermestooling, which is shipped as c++_shared). Without
+        // this, prefab consumption fails with `[CXX1212] User is using a
+        // static STL but library requires a shared STL`. RN's NdkConfiguratorUtils
+        // injects this flag automatically into the module the `com.facebook.react`
+        // plugin is applied to (i.e. :app) — for :poseplugin we declare it here.
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+
+    // Required so CMake's find_package(react-native-vision-camera) (G10) sees
+    // the upstream module's prefab .aar at native-build time.
+    buildFeatures {
+        prefab true
+    }
+
+    // CMakeLists.txt lives at android/CMakeLists.txt (one directory above
+    // repo-root nitrogen/) so Nitrogen's bare ../nitrogen/... relative paths
+    // in +autolinking.cmake resolve correctly. See ADR-001 G13 — physical
+    // CMakeLists location is dictated by Nitrogen's path constraint, the
+    // owning Gradle module is a separate concern.
+    externalNativeBuild {
+        cmake {
+            path '../CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    // Add Nitrogen-generated Kotlin sources to this module's main source set.
+    // rootProject.projectDir = android/, so ../nitrogen/ = repo-root nitrogen/.
+    sourceSets {
+        main {
+            java.srcDirs += ["${rootProject.projectDir}/../nitrogen/generated/android/kotlin"]
+        }
+    }
+}
+
+dependencies {
+    // RN core symbols referenced by both Nitrogen-generated Kotlin and our
+    // own Hybrid implementation:
+    //   - com.facebook.react.bridge.ReactApplicationContext  (return type of
+    //     NitroModules.applicationContext, passed to MediaPipe's createFromOptions)
+    //   - com.facebook.proguard.annotations.DoNotStrip       (annotation on
+    //     every generated *Spec.kt class and method)
+    //   - com.facebook.jni.HybridData                        (constructor field
+    //     in generated *Spec.kt)
+    // Version is unspecified to match :app/build.gradle and rely on the RN
+    // settings plugin's dependency substitution (com.facebook.react.settings
+    // in android/settings.gradle). :react-native-nitro-modules declares this
+    // as implementation (not api), so it is NOT transitively visible — must
+    // be declared here directly.
+    implementation("com.facebook.react:react-android")
+
+    // Nitro core — provides NitroModules.applicationContext and the
+    // HybridObject machinery the Nitrogen-generated specs extend.
+    implementation project(':react-native-nitro-modules')
+
+    // Vision Camera v5 publishes the HybridFrameSpec / NativeFrame symbols
+    // our HybridPoseLandmarker.kt casts to. G10 + G11.
+    implementation project(':react-native-vision-camera')
+
+    // MediaPipe Tasks Vision — pose-detection orchestration (detector +
+    // tracker + ROI + temporal smoothing) per ADR-001 Option 4.
+    api 'com.google.mediapipe:tasks-vision:0.10.21'
+
+    // CameraX core — needed at compile time so we can call ImageProxy.image
+    // on a Vision Camera v5 NativeFrame. Version pinned to match VC v5's
+    // bundled camera-core. G11.
+    api 'androidx.camera:camera-core:1.7.0-alpha01'
+}

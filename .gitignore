@@ -38,4 +38,36 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+
+# Android — track sources, ignore build artifacts and machine-specific files
+android/build/
+android/.gradle/
+android/.cxx/
+android/.idea/
+android/local.properties
+android/**/build/
+android/**/.cxx/
+android/**/.gradle/
+android/captures/
+android/*.iml
+android/**/*.iml
+
+# JVM/HotSpot crash dumps (root and android/)
+hs_err_pid*.log
+replay_pid*.log
+
+# Local build caches (kept on D:\ to spare C:)
+/.cache/
+/.tmp/
+/.gradle-user/
+/build.log
+/metro.log
+/build-output*.log
+/full-build.log
+
+# Local debug artifacts
+/phase1-launch-failure.png
+
+# tooling/agent state
+/.claude/
+/memory/
