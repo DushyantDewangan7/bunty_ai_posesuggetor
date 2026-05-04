@@ -342,3 +342,7 @@ Out-of-frame windows show FPS dropping to 2–6 — these reflect the rate the *
 - [src/camera/usePoseLandmarkerOutput.ts](../../src/camera/usePoseLandmarkerOutput.ts) — JS hook that constructs the Output and wires its callback into `usePoseStream`.
 - [scripts/patch-nitrogen.cjs](../../scripts/patch-nitrogen.cjs) — idempotent post-codegen patcher for the cross-namespace bug.
 
+### G16. Pose match scoring — geometric, not learned (2026-05-04)
+
+Pose match scoring uses Euclidean distance in canonical pose space (post-normalize). Each landmark's distance is weighted by visibility so occluded joints contribute less to the score. Three-state UI feedback: `far` (< 0.5), `close` (0.5–0.85), `matched` (≥ 0.85). Worst-3-joints extracted by sorting weighted distances descending, used to provide actionable hints to the user (e.g. "Adjust your right elbow"). Pure JS, runs at frame rate (33 landmark distances per frame is trivial cost). No model needed for matching — geometric.
+

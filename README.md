@@ -114,6 +114,8 @@ Phase 1 will integrate `react-native-mediapipe` for live pose detection and rend
 
 ## Decisions worth knowing about
 
+Phase 1 fully verified including match scoring (ADR G16). Phase 2 sub-phase A verified (ADR G15).
+
 A few things deviated from the original Phase 0 plan because the React Native ecosystem moved forward. They were chosen deliberately, not silently.
 
 ### 1. Vision Camera 5 + Reanimated 4 (not v4 / v3)
