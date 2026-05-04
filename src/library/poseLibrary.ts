@@ -1,6 +1,9 @@
 import { normalizePose } from '../ml/normalize';
 import type { PoseLandmark } from '../types/landmarks';
-import type { PoseTarget } from '../types/pose';
+import type { PoseCategory, PoseTarget } from '../types/pose';
+import type { RichPose, RichPoseCategory } from '../types/poseMetadata';
+
+import generatedPosesJson from './data/poses.generated.json';
 
 /**
  * Hand-authored stub pose library for Phase 1 demo. Each entry's landmarks
@@ -291,7 +294,25 @@ const THINKER_RAW = buildLandmarks({
   rightAnkle: [0.57, 0.9],
 });
 
-export const POSE_LIBRARY: PoseTarget[] = [
+// 'group' isn't a legacy PoseCategory; collapse it to 'lifestyle' so the
+// existing PoseSelector glyph map and category filter keep working until the
+// 3C stripes UI takes over.
+function richCategoryToLegacy(c: RichPoseCategory): PoseCategory {
+  return c === 'group' ? 'lifestyle' : c;
+}
+
+function richToPoseTarget(rich: RichPose): PoseTarget {
+  return {
+    id: rich.id,
+    name: rich.name,
+    category: richCategoryToLegacy(rich.category),
+    description: rich.description,
+    referenceLandmarks: rich.referenceLandmarks,
+    difficulty: rich.difficulty,
+  };
+}
+
+const STUB_POSES: PoseTarget[] = [
   {
     id: 'tpose',
     name: 'T-pose',
@@ -373,6 +394,12 @@ export const POSE_LIBRARY: PoseTarget[] = [
     difficulty: 2,
   },
 ];
+
+// Pipeline output: scripts/process-poses.mjs writes RichPose[] here. Empty
+// until the user populates images/manifest.json and runs `npm run process-poses`.
+const GENERATED_POSES: PoseTarget[] = (generatedPosesJson as RichPose[]).map(richToPoseTarget);
+
+export const POSE_LIBRARY: PoseTarget[] = [...STUB_POSES, ...GENERATED_POSES];
 
 export function getPoseById(id: string): PoseTarget | undefined {
   return POSE_LIBRARY.find((p) => p.id === id);

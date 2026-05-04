@@ -71,3 +71,8 @@ replay_pid*.log
 # tooling/agent state
 /.claude/
 /memory/
+
+# Phase 3A pose pipeline: keep manifest + generated data, ignore raw inputs
+/images/source/*
+!/images/source/.gitkeep
+/images/rejected.txt

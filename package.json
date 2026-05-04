@@ -10,7 +10,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "nitrogen": "nitrogen && node scripts/patch-nitrogen.cjs"
+    "nitrogen": "nitrogen && node scripts/patch-nitrogen.cjs",
+    "process-poses": "node scripts/process-poses.mjs"
   },
   "dependencies": {
     "@shopify/react-native-skia": "2.2.12",
@@ -31,6 +32,7 @@
     "zustand": "5.0.12"
   },
   "devDependencies": {
+    "@mediapipe/tasks-vision": "0.10.18",
     "@types/react": "19.1.17",
     "babel-preset-expo": "54.0.10",
     "eslint": "9.39.4",
@@ -39,6 +41,8 @@
     "eslint-plugin-prettier": "5.5.5",
     "nitrogen": "0.35.6",
     "prettier": "3.8.3",
+    "puppeteer": "24.5.0",
+    "sharp": "0.33.5",
     "typescript": "5.9.3"
   },
   "private": true

@@ -1,0 +1,5 @@
+{
+  "$schema": "../src/types/poseMetadata.ts",
+  "_doc": "One entry per pose image. imageFile is relative to images/source/. metadata fields match RichPose minus referenceLandmarks (the pipeline fills that in). See docs/sourcing-workflow.md.",
+  "poses": []
+}

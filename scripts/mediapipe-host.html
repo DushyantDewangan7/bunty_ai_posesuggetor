@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>mediapipe host</title>
+  </head>
+  <body>
+    <div id="status">loading...</div>
+    <script type="module">
+      // Loaded inside headless Chromium by puppeteer. Exposes window.__detectPose
+      // so the Node-side script can call it via page.evaluate. Same model file
+      // (pose_landmarker_lite.task) the on-device runtime uses.
+      const TASKS_VISION_VERSION = '0.10.18';
+      const status = document.getElementById('status');
+
+      try {
+        const tv = await import(
+          `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/+esm`
+        );
+        status.textContent = 'tasks-vision imported';
+
+        const fileset = await tv.FilesetResolver.forVisionTasks(
+          `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/wasm`,
+        );
+        status.textContent = 'fileset resolved';
+
+        const landmarker = await tv.PoseLandmarker.createFromOptions(fileset, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task',
+          },
+          runningMode: 'IMAGE',
+          numPoses: 1,
+        });
+        status.textContent = 'landmarker ready';
+
+        window.__detectPose = async (dataUrl) => {
+          const img = new Image();
+          img.src = dataUrl;
+          await img.decode();
+          const result = landmarker.detect(img);
+          // Strip any non-serializable bits and return a plain object.
+          const lms = (result.landmarks?.[0] ?? []).map((p) => ({
+            x: p.x,
+            y: p.y,
+            z: p.z,
+            visibility: p.visibility ?? 0,
+            presence: p.presence ?? 0,
+          }));
+          return { count: lms.length, landmarks: lms };
+        };
+
+        window.__ready = true;
+      } catch (err) {
+        window.__error = String(err?.stack ?? err?.message ?? err);
+        status.textContent = 'ERROR: ' + window.__error;
+      }
+    </script>
+  </body>
+</html>
