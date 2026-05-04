@@ -19,10 +19,9 @@ try {
   page.on('console', (m) => console.log('[browser]', m.type(), m.text()));
   await page.goto(HOST, { waitUntil: 'load' });
   console.log('[verify] host page loaded, waiting for landmarker...');
-  await page.waitForFunction(
-    'window.__ready === true || typeof window.__error === "string"',
-    { timeout: 180000 },
-  );
+  await page.waitForFunction('window.__ready === true || typeof window.__error === "string"', {
+    timeout: 180000,
+  });
   const err = await page.evaluate(() => window.__error ?? null);
   if (err) {
     console.log('[verify] FAILED:', err);

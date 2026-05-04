@@ -1,5 +1,10 @@
 # Pose-image sourcing workflow
 
+> Validated as of 2026-05-05 — first real Pexels pose (`casual-standing-01`,
+> photographer Sephina Cornwall) processed end-to-end and rendering correctly
+> on Samsung A22 5G: ghost target overlays the camera view, fit feedback
+> updates as the user approximates the pose.
+
 This is the manual onramp for adding new reference poses to the library. Each
 session, you find images, write metadata for them in `images/manifest.json`,
 and run the pipeline. The pipeline detects 33 MediaPipe landmarks per image,

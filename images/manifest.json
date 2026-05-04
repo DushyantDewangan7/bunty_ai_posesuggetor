@@ -1,5 +1,31 @@
 {
   "$schema": "../src/types/poseMetadata.ts",
   "_doc": "One entry per pose image. imageFile is relative to images/source/. metadata fields match RichPose minus referenceLandmarks (the pipeline fills that in). See docs/sourcing-workflow.md.",
-  "poses": []
+  "poses": [
+    {
+      "imageFile": "pose-001-standing-confident.jpg",
+      "metadata": {
+        "id": "casual-standing-01",
+        "name": "Casual standing",
+        "description": "Relaxed standing pose, hands in front pockets, weight balanced with one leg crossed casually",
+        "category": "standing",
+        "tags": ["casual", "relaxed", "everyday", "men"],
+        "difficulty": 1,
+        "genderOrientation": "male",
+        "bodyTypeHints": [],
+        "moodTags": ["relaxed", "confident"],
+        "useCase": ["casual", "fashion"],
+        "lightingRecommendation": "any",
+        "recommendedClothing": "casual",
+        "groupSize": 1,
+        "locationType": "any",
+        "imageAttribution": {
+          "source": "pexels",
+          "url": "https://www.pexels.com/photo/casual-portrait-of-young-adult-male-in-studio-31969138/",
+          "author": "Sephina Cornwall",
+          "license": "Pexels License"
+        }
+      }
+    }
+  ]
 }
