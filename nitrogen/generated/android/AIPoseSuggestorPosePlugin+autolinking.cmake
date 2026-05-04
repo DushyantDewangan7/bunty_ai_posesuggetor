@@ -33,9 +33,11 @@ target_sources(
   # Autolinking Setup
   ../nitrogen/generated/android/AIPoseSuggestorPosePluginOnLoad.cpp
   # Shared Nitrogen C++ sources
+  ../nitrogen/generated/shared/c++/HybridFaceLandmarkerOutputSpec.cpp
   ../nitrogen/generated/shared/c++/HybridPoseLandmarkerSpec.cpp
   ../nitrogen/generated/shared/c++/HybridPoseLandmarkerOutputSpec.cpp
   # Android-specific Nitrogen C++ sources
+  ../nitrogen/generated/android/c++/JHybridFaceLandmarkerOutputSpec.cpp
   ../nitrogen/generated/android/c++/JHybridPoseLandmarkerSpec.cpp
   ../nitrogen/generated/android/c++/JHybridPoseLandmarkerOutputSpec.cpp
 )

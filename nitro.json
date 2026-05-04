@@ -28,6 +28,16 @@
         "language": "kotlin",
         "implementationClassName": "HybridPoseLandmarkerOutput"
       }
+    },
+    "FaceLandmarkerOutput": {
+      "ios": {
+        "language": "swift",
+        "implementationClassName": "HybridFaceLandmarkerOutput"
+      },
+      "android": {
+        "language": "kotlin",
+        "implementationClassName": "HybridFaceLandmarkerOutput"
+      }
     }
   },
   "ignorePaths": ["**/node_modules", "**/.cache", "**/android/build", "**/ios/build"]

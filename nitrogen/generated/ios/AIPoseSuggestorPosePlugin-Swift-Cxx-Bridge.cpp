@@ -9,6 +9,7 @@
 
 // Include C++ implementation defined types
 #include "AIPoseSuggestorPosePlugin-Swift-Cxx-Umbrella.hpp"
+#include "HybridFaceLandmarkerOutputSpecSwift.hpp"
 #include "HybridPoseLandmarkerOutputSpecSwift.hpp"
 #include "HybridPoseLandmarkerSpecSwift.hpp"
 #include <NitroModules/NitroDefines.hpp>
@@ -16,6 +17,40 @@
 
 namespace margelo::nitro::aiposesuggestor::poseplugin::bridge::swift {
 
+  // pragma MARK: std::function<void(const FaceLandmarkResult& /* result */)>
+  Func_void_FaceLandmarkResult create_Func_void_FaceLandmarkResult(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = AIPoseSuggestorPosePlugin::Func_void_FaceLandmarkResult::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const FaceLandmarkResult& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+  
+  // pragma MARK: std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>
+  std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec> create_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
+    // Implemented in VisionCamera
+    return margelo::nitro::camera::bridge::swift::create_std__shared_ptr_HybridCameraOutputSpec_(swiftUnsafePointer);
+  }
+  void* NON_NULL get_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ cppType) {
+    // Implemented in VisionCamera
+    return margelo::nitro::camera::bridge::swift::get_std__shared_ptr_HybridCameraOutputSpec_(cppType);
+  }
+  
+  // pragma MARK: std::shared_ptr<HybridFaceLandmarkerOutputSpec>
+  std::shared_ptr<HybridFaceLandmarkerOutputSpec> create_std__shared_ptr_HybridFaceLandmarkerOutputSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
+    AIPoseSuggestorPosePlugin::HybridFaceLandmarkerOutputSpec_cxx swiftPart = AIPoseSuggestorPosePlugin::HybridFaceLandmarkerOutputSpec_cxx::fromUnsafe(swiftUnsafePointer);
+    return std::make_shared<margelo::nitro::aiposesuggestor::poseplugin::HybridFaceLandmarkerOutputSpecSwift>(swiftPart);
+  }
+  void* NON_NULL get_std__shared_ptr_HybridFaceLandmarkerOutputSpec_(std__shared_ptr_HybridFaceLandmarkerOutputSpec_ cppType) {
+    std::shared_ptr<margelo::nitro::aiposesuggestor::poseplugin::HybridFaceLandmarkerOutputSpecSwift> swiftWrapper = std::dynamic_pointer_cast<margelo::nitro::aiposesuggestor::poseplugin::HybridFaceLandmarkerOutputSpecSwift>(cppType);
+    #ifdef NITRO_DEBUG
+    if (swiftWrapper == nullptr) [[unlikely]] {
+      throw std::runtime_error("Class \"HybridFaceLandmarkerOutputSpec\" is not implemented in Swift!");
+    }
+    #endif
+    AIPoseSuggestorPosePlugin::HybridFaceLandmarkerOutputSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
+    return swiftPart.toUnsafe();
+  }
+  
   // pragma MARK: std::shared_ptr<HybridPoseLandmarkerSpec>
   std::shared_ptr<HybridPoseLandmarkerSpec> create_std__shared_ptr_HybridPoseLandmarkerSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
     AIPoseSuggestorPosePlugin::HybridPoseLandmarkerSpec_cxx swiftPart = AIPoseSuggestorPosePlugin::HybridPoseLandmarkerSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -38,16 +73,6 @@ namespace margelo::nitro::aiposesuggestor::poseplugin::bridge::swift {
     return [swiftClosure = std::move(swiftClosure)](const PoseLandmarkResult& result) mutable -> void {
       swiftClosure.call(result);
     };
-  }
-  
-  // pragma MARK: std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>
-  std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec> create_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
-    // Implemented in VisionCamera
-    return margelo::nitro::camera::bridge::swift::create_std__shared_ptr_HybridCameraOutputSpec_(swiftUnsafePointer);
-  }
-  void* NON_NULL get_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ cppType) {
-    // Implemented in VisionCamera
-    return margelo::nitro::camera::bridge::swift::get_std__shared_ptr_HybridCameraOutputSpec_(cppType);
   }
   
   // pragma MARK: std::shared_ptr<HybridPoseLandmarkerOutputSpec>

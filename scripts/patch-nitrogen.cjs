@@ -66,7 +66,8 @@ function processFile(file) {
     //   - forward-decl lines (already handled above with the precise regex)
     const trimmed = line.trimStart();
     const isInclude = trimmed.startsWith('#include');
-    const isComment = trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
+    const isComment =
+      trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
     const isForwardDecl =
       trimmed.startsWith('namespace margelo::nitro::') && /enum class \w+; \}/.test(trimmed);
 

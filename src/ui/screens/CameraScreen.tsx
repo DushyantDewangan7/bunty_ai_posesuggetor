@@ -5,8 +5,13 @@ import { openSettings } from 'react-native-permissions';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 
 import { usePoseLandmarkerOutput } from '../../camera/usePoseLandmarkerOutput';
+import { matchPose } from '../../recommendation/poseMatch';
 import { usePoseStream } from '../../state/poseStream';
+import { usePoseTarget } from '../../state/poseTarget';
+import { MatchFeedback } from '../components/MatchFeedback';
 import { MockPoseControls } from '../components/MockPoseControls';
+import { PoseSelector } from '../components/PoseSelector';
+import { PoseTargetOverlay } from '../components/PoseTargetOverlay';
 import { PoseSkeleton } from '../overlays/PoseSkeleton';
 
 const CAMERA_RATIONALE =
@@ -34,6 +39,24 @@ export function CameraScreen(): React.JSX.Element {
       void requestPermission();
     }
   }, [hasPermission, requestPermission]);
+
+  // Continuous match scoring: every time a new normalized frame arrives,
+  // score it against the currently-selected target (if any) and push the
+  // result into the poseTarget store for MatchFeedback to render.
+  useEffect(() => {
+    const unsub = usePoseStream.subscribe((state, prev) => {
+      if (state.latestNormalized === prev.latestNormalized) return;
+      const target = usePoseTarget.getState().selected;
+      if (!target) return;
+      if (!state.latestNormalized) {
+        usePoseTarget.getState().setMatchResult(null);
+        return;
+      }
+      const result = matchPose(target.referenceLandmarks, state.latestNormalized);
+      usePoseTarget.getState().setMatchResult(result);
+    });
+    return unsub;
+  }, []);
 
   if (!hasPermission) {
     return (
@@ -67,8 +90,11 @@ export function CameraScreen(): React.JSX.Element {
         outputs={[poseOutput]}
       />
       <Canvas style={StyleSheet.absoluteFill}>
+        <PoseTargetOverlay mirrored={false} />
         <PoseSkeleton mirrored={false} />
       </Canvas>
+      <MatchFeedback />
+      <PoseSelector />
       <MockPoseControls />
       <DebugOverlay />
     </View>

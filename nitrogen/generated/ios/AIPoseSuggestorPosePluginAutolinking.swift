@@ -35,4 +35,16 @@ public final class AIPoseSuggestorPosePluginAutolinking {
   public static func isPoseLandmarkerOutputRecyclable() -> Bool {
     return HybridPoseLandmarkerOutput.self is any RecyclableView.Type
   }
+  
+  public static func createFaceLandmarkerOutput() -> bridge.std__shared_ptr_HybridFaceLandmarkerOutputSpec_ {
+    let hybridObject = HybridFaceLandmarkerOutput()
+    return { () -> bridge.std__shared_ptr_HybridFaceLandmarkerOutputSpec_ in
+      let __cxxWrapped = hybridObject.getCxxWrapper()
+      return __cxxWrapped.getCxxPart()
+    }()
+  }
+  
+  public static func isFaceLandmarkerOutputRecyclable() -> Bool {
+    return HybridFaceLandmarkerOutput.self is any RecyclableView.Type
+  }
 }

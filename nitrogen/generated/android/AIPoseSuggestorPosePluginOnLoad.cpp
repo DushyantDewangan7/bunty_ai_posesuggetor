@@ -15,6 +15,8 @@
 #include <fbjni/fbjni.h>
 #include <NitroModules/HybridObjectRegistry.hpp>
 
+#include "JHybridFaceLandmarkerOutputSpec.hpp"
+#include "JFunc_void_FaceLandmarkResult.hpp"
 #include "JHybridPoseLandmarkerSpec.hpp"
 #include "JHybridPoseLandmarkerOutputSpec.hpp"
 #include "JFunc_void_PoseLandmarkResult.hpp"
@@ -44,12 +46,22 @@ struct JHybridPoseLandmarkerOutputSpecImpl: public jni::JavaClass<JHybridPoseLan
     return javaPart->getJHybridPoseLandmarkerOutputSpec();
   }
 };
+struct JHybridFaceLandmarkerOutputSpecImpl: public jni::JavaClass<JHybridFaceLandmarkerOutputSpecImpl, JHybridFaceLandmarkerOutputSpec::JavaPart> {
+  static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/aiposesuggestor/poseplugin/HybridFaceLandmarkerOutput;";
+  static std::shared_ptr<JHybridFaceLandmarkerOutputSpec> create() {
+    static const auto constructorFn = javaClassStatic()->getConstructor<JHybridFaceLandmarkerOutputSpecImpl::javaobject()>();
+    jni::local_ref<JHybridFaceLandmarkerOutputSpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);
+    return javaPart->getJHybridFaceLandmarkerOutputSpec();
+  }
+};
 
 void registerAllNatives() {
   using namespace margelo::nitro;
   using namespace margelo::nitro::aiposesuggestor::poseplugin;
 
   // Register native JNI methods
+  margelo::nitro::aiposesuggestor::poseplugin::JHybridFaceLandmarkerOutputSpec::CxxPart::registerNatives();
+  margelo::nitro::aiposesuggestor::poseplugin::JFunc_void_FaceLandmarkResult_cxx::registerNatives();
   margelo::nitro::aiposesuggestor::poseplugin::JHybridPoseLandmarkerSpec::CxxPart::registerNatives();
   margelo::nitro::aiposesuggestor::poseplugin::JHybridPoseLandmarkerOutputSpec::CxxPart::registerNatives();
   margelo::nitro::aiposesuggestor::poseplugin::JFunc_void_PoseLandmarkResult_cxx::registerNatives();
@@ -65,6 +77,12 @@ void registerAllNatives() {
     "PoseLandmarkerOutput",
     []() -> std::shared_ptr<HybridObject> {
       return JHybridPoseLandmarkerOutputSpecImpl::create();
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "FaceLandmarkerOutput",
+    []() -> std::shared_ptr<HybridObject> {
+      return JHybridFaceLandmarkerOutputSpecImpl::create();
     }
   );
 }

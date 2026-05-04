@@ -12,6 +12,7 @@
 
 #include "HybridPoseLandmarkerSpecSwift.hpp"
 #include "HybridPoseLandmarkerOutputSpecSwift.hpp"
+#include "HybridFaceLandmarkerOutputSpecSwift.hpp"
 
 @interface AIPoseSuggestorPosePluginAutolinking : NSObject
 @end
@@ -33,6 +34,13 @@
     "PoseLandmarkerOutput",
     []() -> std::shared_ptr<HybridObject> {
       std::shared_ptr<HybridPoseLandmarkerOutputSpec> hybridObject = AIPoseSuggestorPosePlugin::AIPoseSuggestorPosePluginAutolinking::createPoseLandmarkerOutput();
+      return hybridObject;
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "FaceLandmarkerOutput",
+    []() -> std::shared_ptr<HybridObject> {
+      std::shared_ptr<HybridFaceLandmarkerOutputSpec> hybridObject = AIPoseSuggestorPosePlugin::AIPoseSuggestorPosePluginAutolinking::createFaceLandmarkerOutput();
       return hybridObject;
     }
   );

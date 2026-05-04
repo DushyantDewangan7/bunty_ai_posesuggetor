@@ -8,8 +8,14 @@
 #pragma once
 
 // Forward declarations of C++ defined types
+// Forward declaration of `FaceLandmarkResult` to properly resolve imports.
+namespace margelo::nitro::aiposesuggestor::poseplugin { struct FaceLandmarkResult; }
+// Forward declaration of `FaceLandmark` to properly resolve imports.
+namespace margelo::nitro::aiposesuggestor::poseplugin { struct FaceLandmark; }
 // Forward declaration of `HybridCameraOutputSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridCameraOutputSpec; }
+// Forward declaration of `HybridFaceLandmarkerOutputSpec` to properly resolve imports.
+namespace margelo::nitro::aiposesuggestor::poseplugin { class HybridFaceLandmarkerOutputSpec; }
 // Forward declaration of `HybridPoseLandmarkerOutputSpec` to properly resolve imports.
 namespace margelo::nitro::aiposesuggestor::poseplugin { class HybridPoseLandmarkerOutputSpec; }
 // Forward declaration of `HybridPoseLandmarkerSpec` to properly resolve imports.
@@ -22,12 +28,17 @@ namespace margelo::nitro::aiposesuggestor::poseplugin { struct PoseLandmark; }
 // Forward declarations of Swift defined types
 // Forward declaration of `HybridCameraOutputSpec_cxx` to properly resolve imports.
 namespace VisionCamera { class HybridCameraOutputSpec_cxx; }
+// Forward declaration of `HybridFaceLandmarkerOutputSpec_cxx` to properly resolve imports.
+namespace AIPoseSuggestorPosePlugin { class HybridFaceLandmarkerOutputSpec_cxx; }
 // Forward declaration of `HybridPoseLandmarkerOutputSpec_cxx` to properly resolve imports.
 namespace AIPoseSuggestorPosePlugin { class HybridPoseLandmarkerOutputSpec_cxx; }
 // Forward declaration of `HybridPoseLandmarkerSpec_cxx` to properly resolve imports.
 namespace AIPoseSuggestorPosePlugin { class HybridPoseLandmarkerSpec_cxx; }
 
 // Include C++ defined types
+#include "FaceLandmark.hpp"
+#include "FaceLandmarkResult.hpp"
+#include "HybridFaceLandmarkerOutputSpec.hpp"
 #include "HybridPoseLandmarkerOutputSpec.hpp"
 #include "HybridPoseLandmarkerSpec.hpp"
 #include "PoseLandmark.hpp"
@@ -47,6 +58,90 @@ namespace AIPoseSuggestorPosePlugin { class HybridPoseLandmarkerSpec_cxx; }
  */
 namespace margelo::nitro::aiposesuggestor::poseplugin::bridge::swift {
 
+  // pragma MARK: std::vector<FaceLandmark>
+  /**
+   * Specialized version of `std::vector<FaceLandmark>`.
+   */
+  using std__vector_FaceLandmark_ = std::vector<FaceLandmark>;
+  inline std::vector<FaceLandmark> create_std__vector_FaceLandmark_(size_t size) noexcept {
+    std::vector<FaceLandmark> vector;
+    vector.reserve(size);
+    return vector;
+  }
+  
+  // pragma MARK: std::function<void(const FaceLandmarkResult& /* result */)>
+  /**
+   * Specialized version of `std::function<void(const FaceLandmarkResult&)>`.
+   */
+  using Func_void_FaceLandmarkResult = std::function<void(const FaceLandmarkResult& /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(const FaceLandmarkResult& / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_FaceLandmarkResult_Wrapper final {
+  public:
+    explicit Func_void_FaceLandmarkResult_Wrapper(std::function<void(const FaceLandmarkResult& /* result */)>&& func): _function(std::make_unique<std::function<void(const FaceLandmarkResult& /* result */)>>(std::move(func))) {}
+    inline void call(FaceLandmarkResult result) const noexcept {
+      _function->operator()(result);
+    }
+  private:
+    std::unique_ptr<std::function<void(const FaceLandmarkResult& /* result */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_FaceLandmarkResult create_Func_void_FaceLandmarkResult(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_FaceLandmarkResult_Wrapper wrap_Func_void_FaceLandmarkResult(Func_void_FaceLandmarkResult value) noexcept {
+    return Func_void_FaceLandmarkResult_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::optional<std::function<void(const FaceLandmarkResult& /* result */)>>
+  /**
+   * Specialized version of `std::optional<std::function<void(const FaceLandmarkResult& / * result * /)>>`.
+   */
+  using std__optional_std__function_void_const_FaceLandmarkResult_____result______ = std::optional<std::function<void(const FaceLandmarkResult& /* result */)>>;
+  inline std::optional<std::function<void(const FaceLandmarkResult& /* result */)>> create_std__optional_std__function_void_const_FaceLandmarkResult_____result______(const std::function<void(const FaceLandmarkResult& /* result */)>& value) noexcept {
+    return std::optional<std::function<void(const FaceLandmarkResult& /* result */)>>(value);
+  }
+  inline bool has_value_std__optional_std__function_void_const_FaceLandmarkResult_____result______(const std::optional<std::function<void(const FaceLandmarkResult& /* result */)>>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline std::function<void(const FaceLandmarkResult& /* result */)> get_std__optional_std__function_void_const_FaceLandmarkResult_____result______(const std::optional<std::function<void(const FaceLandmarkResult& /* result */)>>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>
+  /**
+   * Specialized version of `std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>`.
+   */
+  using std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ = std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>;
+  std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec> create_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(void* NON_NULL swiftUnsafePointer) noexcept;
+  void* NON_NULL get_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<margelo::nitro::camera::HybridCameraOutputSpec>
+  using std__weak_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ = std::weak_ptr<margelo::nitro::camera::HybridCameraOutputSpec>;
+  inline std__weak_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ weakify_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(const std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>& strong) noexcept { return strong; }
+  
+  // pragma MARK: std::shared_ptr<HybridFaceLandmarkerOutputSpec>
+  /**
+   * Specialized version of `std::shared_ptr<HybridFaceLandmarkerOutputSpec>`.
+   */
+  using std__shared_ptr_HybridFaceLandmarkerOutputSpec_ = std::shared_ptr<HybridFaceLandmarkerOutputSpec>;
+  std::shared_ptr<HybridFaceLandmarkerOutputSpec> create_std__shared_ptr_HybridFaceLandmarkerOutputSpec_(void* NON_NULL swiftUnsafePointer) noexcept;
+  void* NON_NULL get_std__shared_ptr_HybridFaceLandmarkerOutputSpec_(std__shared_ptr_HybridFaceLandmarkerOutputSpec_ cppType);
+  
+  // pragma MARK: std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>
+  inline std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec> upcast_FaceLandmarkerOutput_to_CameraOutput(std::shared_ptr<HybridFaceLandmarkerOutputSpec> child) noexcept { return child; }
+  
+  // pragma MARK: std::weak_ptr<HybridFaceLandmarkerOutputSpec>
+  using std__weak_ptr_HybridFaceLandmarkerOutputSpec_ = std::weak_ptr<HybridFaceLandmarkerOutputSpec>;
+  inline std__weak_ptr_HybridFaceLandmarkerOutputSpec_ weakify_std__shared_ptr_HybridFaceLandmarkerOutputSpec_(const std::shared_ptr<HybridFaceLandmarkerOutputSpec>& strong) noexcept { return strong; }
+  
+  // pragma MARK: Result<void>
+  using Result_void_ = Result<void>;
+  inline Result_void_ create_Result_void_() noexcept {
+    return Result<void>::withValue();
+  }
+  inline Result_void_ create_Result_void_(const std::exception_ptr& error) noexcept {
+    return Result<void>::withError(error);
+  }
+  
   // pragma MARK: std::shared_ptr<HybridPoseLandmarkerSpec>
   /**
    * Specialized version of `std::shared_ptr<HybridPoseLandmarkerSpec>`.
@@ -125,18 +220,6 @@ namespace margelo::nitro::aiposesuggestor::poseplugin::bridge::swift {
     return optional.value();
   }
   
-  // pragma MARK: std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>
-  /**
-   * Specialized version of `std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>`.
-   */
-  using std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ = std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>;
-  std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec> create_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(void* NON_NULL swiftUnsafePointer) noexcept;
-  void* NON_NULL get_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ cppType);
-  
-  // pragma MARK: std::weak_ptr<margelo::nitro::camera::HybridCameraOutputSpec>
-  using std__weak_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ = std::weak_ptr<margelo::nitro::camera::HybridCameraOutputSpec>;
-  inline std__weak_ptr_margelo__nitro__camera__HybridCameraOutputSpec_ weakify_std__shared_ptr_margelo__nitro__camera__HybridCameraOutputSpec_(const std::shared_ptr<margelo::nitro::camera::HybridCameraOutputSpec>& strong) noexcept { return strong; }
-  
   // pragma MARK: std::shared_ptr<HybridPoseLandmarkerOutputSpec>
   /**
    * Specialized version of `std::shared_ptr<HybridPoseLandmarkerOutputSpec>`.
@@ -151,14 +234,5 @@ namespace margelo::nitro::aiposesuggestor::poseplugin::bridge::swift {
   // pragma MARK: std::weak_ptr<HybridPoseLandmarkerOutputSpec>
   using std__weak_ptr_HybridPoseLandmarkerOutputSpec_ = std::weak_ptr<HybridPoseLandmarkerOutputSpec>;
   inline std__weak_ptr_HybridPoseLandmarkerOutputSpec_ weakify_std__shared_ptr_HybridPoseLandmarkerOutputSpec_(const std::shared_ptr<HybridPoseLandmarkerOutputSpec>& strong) noexcept { return strong; }
-  
-  // pragma MARK: Result<void>
-  using Result_void_ = Result<void>;
-  inline Result_void_ create_Result_void_() noexcept {
-    return Result<void>::withValue();
-  }
-  inline Result_void_ create_Result_void_(const std::exception_ptr& error) noexcept {
-    return Result<void>::withError(error);
-  }
 
 } // namespace margelo::nitro::aiposesuggestor::poseplugin::bridge::swift

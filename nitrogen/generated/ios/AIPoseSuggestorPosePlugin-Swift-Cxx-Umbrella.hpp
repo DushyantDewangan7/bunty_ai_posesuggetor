@@ -10,8 +10,14 @@
 // Forward declarations of C++ defined types
 // Forward declaration of `CameraOrientation` to properly resolve imports.
 namespace margelo::nitro::aiposesuggestor::poseplugin { enum class CameraOrientation; }
+// Forward declaration of `FaceLandmarkResult` to properly resolve imports.
+namespace margelo::nitro::aiposesuggestor::poseplugin { struct FaceLandmarkResult; }
+// Forward declaration of `FaceLandmark` to properly resolve imports.
+namespace margelo::nitro::aiposesuggestor::poseplugin { struct FaceLandmark; }
 // Forward declaration of `HybridCameraOutputSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridCameraOutputSpec; }
+// Forward declaration of `HybridFaceLandmarkerOutputSpec` to properly resolve imports.
+namespace margelo::nitro::aiposesuggestor::poseplugin { class HybridFaceLandmarkerOutputSpec; }
 // Forward declaration of `HybridPoseLandmarkerOutputSpec` to properly resolve imports.
 namespace margelo::nitro::aiposesuggestor::poseplugin { class HybridPoseLandmarkerOutputSpec; }
 // Forward declaration of `HybridPoseLandmarkerSpec` to properly resolve imports.
@@ -25,6 +31,9 @@ namespace margelo::nitro::aiposesuggestor::poseplugin { struct PoseLandmark; }
 
 // Include C++ defined types
 #include "CameraOrientation.hpp"
+#include "FaceLandmark.hpp"
+#include "FaceLandmarkResult.hpp"
+#include "HybridFaceLandmarkerOutputSpec.hpp"
 #include "HybridPoseLandmarkerOutputSpec.hpp"
 #include "HybridPoseLandmarkerSpec.hpp"
 #include "MediaType.hpp"
@@ -51,6 +60,8 @@ namespace margelo::nitro::aiposesuggestor::poseplugin { struct PoseLandmark; }
 // Forward declarations of Swift defined types
 // Forward declaration of `HybridCameraOutputSpec_cxx` to properly resolve imports.
 namespace VisionCamera { class HybridCameraOutputSpec_cxx; }
+// Forward declaration of `HybridFaceLandmarkerOutputSpec_cxx` to properly resolve imports.
+namespace AIPoseSuggestorPosePlugin { class HybridFaceLandmarkerOutputSpec_cxx; }
 // Forward declaration of `HybridPoseLandmarkerOutputSpec_cxx` to properly resolve imports.
 namespace AIPoseSuggestorPosePlugin { class HybridPoseLandmarkerOutputSpec_cxx; }
 // Forward declaration of `HybridPoseLandmarkerSpec_cxx` to properly resolve imports.
