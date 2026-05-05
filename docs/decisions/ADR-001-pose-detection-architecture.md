@@ -346,3 +346,30 @@ Out-of-frame windows show FPS dropping to 2–6 — these reflect the rate the *
 
 Pose match scoring uses Euclidean distance in canonical pose space (post-normalize). Each landmark's distance is weighted by visibility so occluded joints contribute less to the score. Three-state UI feedback: `far` (< 0.5), `close` (0.5–0.85), `matched` (≥ 0.85). Worst-3-joints extracted by sorting weighted distances descending, used to provide actionable hints to the user (e.g. "Adjust your right elbow"). Pure JS, runs at frame rate (33 landmark distances per frame is trivial cost). No model needed for matching — geometric.
 
+### G17. Pose recommendation engine — weighted linear scoring with two stub components (2026-05-05)
+
+Phase 3B introduces per-user pose recommendations. The scorer is a deterministic weighted linear combination of four components, each in `[0, 1]`:
+
+- **Gender match (weight 0.4)** — `1.0` for matching `genderOrientation`, `0.8` for `neutral`, `0.2` for the opposite gender, `0.7` for unknown / `non_binary` / `prefer_not_to_say`. Treated as a soft signal: an opposite-gender pose is de-prioritised but never excluded.
+- **Mood match (weight 0.2)** — stub returning `0.5` for now. Will be driven by interaction history (which mood tags the user taps most often) when that signal exists.
+- **Use-case match (weight 0.2)** — stub returning `0.5`. Will derive from explicit setting or interaction patterns later.
+- **Difficulty preference (weight 0.2)** — descending preference (`1.0` for difficulty 1, down to `0.1` for difficulty 5). With no skill data, easier poses are preferred. When per-user skill estimates exist, this is the function that should change.
+
+Diversity scoring and difficulty progression are explicitly **deferred** until the library exceeds ~30 poses — for the current 11-pose library they would either be no-ops or produce thrashing.
+
+**Novelty / no-repeat** is implemented as a session-scoped `shownPoseIds` set in [src/state/recommendationSession.ts](../../src/state/recommendationSession.ts), updated when the user taps any pose card. The set is **not** persisted to MMKV — it resets on app launch, which is the desired behaviour ("fresh recommendations every session"). It also feeds the `recommend` `useMemo` dependency, so within a session the For You row reorders as poses are tapped (a feature, not a bug — already-tapped poses naturally cycle out).
+
+The scorer is split into two files specifically so it stays unit-testable: [src/recommendation/recommendCore.ts](../../src/recommendation/recommendCore.ts) holds the pure `recommendFrom(library, context)` and the four `compute*` helpers (no module-level library import), and [src/recommendation/recommend.ts](../../src/recommendation/recommend.ts) wires `RICH_POSE_LIBRARY` into a convenience `recommend(context)` for production. The pure variant lets tests pass `RichPose[]` fixtures without dragging in `react-native-mmkv` or the bundled JSON via `--experimental-strip-types`.
+
+The library was upgraded to expose `RICH_POSE_LIBRARY: RichPose[]` alongside the existing `POSE_LIBRARY: PoseTarget[]` so the scorer reads `genderOrientation` etc. The 10 stub poses gained sensible default rich metadata; only `power-stance` (male) and `profile-left` (female) are gendered, the rest are `neutral`.
+
+UI integration in [src/ui/components/PoseSelector.tsx](../../src/ui/components/PoseSelector.tsx) renders top-3 recommendations behind a yellow `✨ For You` label with a yellow-tinted card border, then a faint divider, then the rest of `POSE_LIBRARY` excluding the recommended IDs. The Track B match scorer (G16) is unchanged — it operates on whichever pose the user actually selects, regardless of how that pose got displayed.
+
+Files of interest:
+- [src/types/recommendation.ts](../../src/types/recommendation.ts) — `RecommendationContext`, `ScoredPose`, `RecommendationResult`.
+- [src/recommendation/recommendCore.ts](../../src/recommendation/recommendCore.ts) — pure scorer (testable).
+- [src/recommendation/recommend.ts](../../src/recommendation/recommend.ts) — production binding to `RICH_POSE_LIBRARY`.
+- [src/recommendation/recommend.test.ts](../../src/recommendation/recommend.test.ts) — 8 unit cases (gender, novelty, limit, edge profiles).
+- [src/state/recommendationSession.ts](../../src/state/recommendationSession.ts) — Zustand session-scoped shown set.
+- [src/library/poseLibrary.ts](../../src/library/poseLibrary.ts) — adds `RICH_POSE_LIBRARY` and `getRichPoseById`.
+

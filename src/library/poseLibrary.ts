@@ -312,7 +312,7 @@ function richToPoseTarget(rich: RichPose): PoseTarget {
   };
 }
 
-const STUB_POSES: PoseTarget[] = [
+const STUB_RICH_POSES: RichPose[] = [
   {
     id: 'tpose',
     name: 'T-pose',
@@ -320,6 +320,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Stand facing the camera with arms straight out to the sides.',
     referenceLandmarks: normalizeOrThrow('tpose', TPOSE_RAW),
     difficulty: 1,
+    tags: ['calibration', 'reference'],
+    genderOrientation: 'neutral',
+    bodyTypeHints: [],
+    moodTags: ['serious'],
+    useCase: ['casual'],
+    lightingRecommendation: 'any',
+    recommendedClothing: 'any',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'hands-hips',
@@ -328,6 +338,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Stand confidently with both hands resting on your hips.',
     referenceLandmarks: normalizeOrThrow('hands-hips', HANDS_HIPS_RAW),
     difficulty: 1,
+    tags: ['confident', 'classic'],
+    genderOrientation: 'neutral',
+    bodyTypeHints: [],
+    moodTags: ['confident'],
+    useCase: ['casual', 'fashion'],
+    lightingRecommendation: 'any',
+    recommendedClothing: 'any',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'arm-up-right',
@@ -336,6 +356,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Raise your right arm straight up, left arm relaxed at your side.',
     referenceLandmarks: normalizeOrThrow('arm-up-right', ARM_UP_RIGHT_RAW),
     difficulty: 2,
+    tags: ['playful', 'dynamic'],
+    genderOrientation: 'neutral',
+    bodyTypeHints: [],
+    moodTags: ['playful', 'confident'],
+    useCase: ['travel', 'casual'],
+    lightingRecommendation: 'bright',
+    recommendedClothing: 'casual',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'power-stance',
@@ -344,6 +374,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Feet shoulder-width apart, hands on hips, chest open.',
     referenceLandmarks: normalizeOrThrow('power-stance', POWER_STANCE_RAW),
     difficulty: 2,
+    tags: ['confident', 'strong'],
+    genderOrientation: 'male',
+    bodyTypeHints: [],
+    moodTags: ['confident', 'serious'],
+    useCase: ['fashion', 'fitness'],
+    lightingRecommendation: 'dramatic',
+    recommendedClothing: 'fitted',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'casual-lean',
@@ -352,6 +392,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Tilt your weight to one side for a relaxed, candid look.',
     referenceLandmarks: normalizeOrThrow('casual-lean', CASUAL_LEAN_RAW),
     difficulty: 2,
+    tags: ['relaxed', 'candid'],
+    genderOrientation: 'neutral',
+    bodyTypeHints: [],
+    moodTags: ['relaxed'],
+    useCase: ['casual', 'fashion'],
+    lightingRecommendation: 'soft',
+    recommendedClothing: 'casual',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'warrior-1',
@@ -360,6 +410,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Front leg bent, back leg straight, arms reaching overhead.',
     referenceLandmarks: normalizeOrThrow('warrior-1', WARRIOR_1_RAW),
     difficulty: 4,
+    tags: ['yoga', 'strong'],
+    genderOrientation: 'neutral',
+    bodyTypeHints: [],
+    moodTags: ['serious', 'confident'],
+    useCase: ['fitness'],
+    lightingRecommendation: 'bright',
+    recommendedClothing: 'fitted',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'squat',
@@ -368,6 +428,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Bend knees, hips low, arms forward for balance.',
     referenceLandmarks: normalizeOrThrow('squat', SQUAT_RAW),
     difficulty: 3,
+    tags: ['fitness', 'strength'],
+    genderOrientation: 'neutral',
+    bodyTypeHints: [],
+    moodTags: ['serious'],
+    useCase: ['fitness'],
+    lightingRecommendation: 'bright',
+    recommendedClothing: 'fitted',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'crosslegged',
@@ -376,6 +446,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Seated with legs crossed, hands resting on the knees.',
     referenceLandmarks: normalizeOrThrow('crosslegged', CROSSLEGGED_RAW),
     difficulty: 2,
+    tags: ['relaxed', 'meditative'],
+    genderOrientation: 'neutral',
+    bodyTypeHints: [],
+    moodTags: ['relaxed'],
+    useCase: ['casual'],
+    lightingRecommendation: 'soft',
+    recommendedClothing: 'casual',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'profile-left',
@@ -384,6 +464,16 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Rotate three-quarters away from the camera for a profile shot.',
     referenceLandmarks: normalizeOrThrow('profile-left', PROFILE_LEFT_RAW),
     difficulty: 3,
+    tags: ['fashion', 'angle'],
+    genderOrientation: 'female',
+    bodyTypeHints: [],
+    moodTags: ['professional', 'confident'],
+    useCase: ['fashion', 'wedding'],
+    lightingRecommendation: 'soft',
+    recommendedClothing: 'formal',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
   {
     id: 'thinker',
@@ -392,15 +482,32 @@ const STUB_POSES: PoseTarget[] = [
     description: 'Bring your right hand up near your chin, contemplative look.',
     referenceLandmarks: normalizeOrThrow('thinker', THINKER_RAW),
     difficulty: 2,
+    tags: ['thoughtful', 'lifestyle'],
+    genderOrientation: 'neutral',
+    bodyTypeHints: [],
+    moodTags: ['serious', 'professional'],
+    useCase: ['fashion', 'casual'],
+    lightingRecommendation: 'soft',
+    recommendedClothing: 'any',
+    groupSize: 1,
+    locationType: 'any',
+    imageAttribution: { source: 'manual', url: '', author: 'stub', license: 'internal' },
   },
 ];
 
 // Pipeline output: scripts/process-poses.mjs writes RichPose[] here. Empty
 // until the user populates images/manifest.json and runs `npm run process-poses`.
-const GENERATED_POSES: PoseTarget[] = (generatedPosesJson as RichPose[]).map(richToPoseTarget);
+const GENERATED_RICH_POSES: RichPose[] = generatedPosesJson as RichPose[];
 
-export const POSE_LIBRARY: PoseTarget[] = [...STUB_POSES, ...GENERATED_POSES];
+/** Rich library used by the recommendation engine — same order as POSE_LIBRARY. */
+export const RICH_POSE_LIBRARY: RichPose[] = [...STUB_RICH_POSES, ...GENERATED_RICH_POSES];
+
+export const POSE_LIBRARY: PoseTarget[] = RICH_POSE_LIBRARY.map(richToPoseTarget);
 
 export function getPoseById(id: string): PoseTarget | undefined {
   return POSE_LIBRARY.find((p) => p.id === id);
+}
+
+export function getRichPoseById(id: string): RichPose | undefined {
+  return RICH_POSE_LIBRARY.find((p) => p.id === id);
 }

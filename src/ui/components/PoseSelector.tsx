@@ -1,7 +1,11 @@
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { POSE_LIBRARY } from '../../library/poseLibrary';
+import { recommend } from '../../recommendation/recommend';
 import { usePoseTarget } from '../../state/poseTarget';
+import { useRecommendationSession } from '../../state/recommendationSession';
+import { useUserProfile } from '../../state/userProfile';
 import type { PoseCategory, PoseTarget } from '../../types/pose';
 
 const CATEGORY_GLYPH: Record<PoseCategory, string> = {
@@ -11,9 +15,27 @@ const CATEGORY_GLYPH: Record<PoseCategory, string> = {
   lifestyle: '◐',
 };
 
+const RECOMMENDATION_LIMIT = 3;
+
 export function PoseSelector(): React.JSX.Element {
   const selected = usePoseTarget((s) => s.selected);
   const selectTarget = usePoseTarget((s) => s.selectTarget);
+  const profile = useUserProfile((s) => s.profile);
+  const shownPoseIds = useRecommendationSession((s) => s.shownPoseIds);
+  const markShown = useRecommendationSession((s) => s.markShown);
+
+  const { recommendedPoses, otherPoses } = useMemo(() => {
+    const result = recommend({ profile, shownPoseIds, limit: RECOMMENDATION_LIMIT });
+    const recIds = new Set(result.recommendations.map((r) => r.pose.id));
+    const recOrdered = result.recommendations.map((r) => r.pose);
+    const others = POSE_LIBRARY.filter((p) => !recIds.has(p.id));
+    return { recommendedPoses: recOrdered, otherPoses: others };
+  }, [profile, shownPoseIds]);
+
+  const handlePress = (pose: PoseTarget): void => {
+    selectTarget(pose);
+    markShown(pose.id);
+  };
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
@@ -23,12 +45,29 @@ export function PoseSelector(): React.JSX.Element {
         contentContainerStyle={styles.scrollContent}
       >
         <ClearCard active={selected === null} onPress={() => selectTarget(null)} />
-        {POSE_LIBRARY.map((pose) => (
+        {recommendedPoses.length > 0 && (
+          <>
+            <View style={styles.forYouLabelWrap}>
+              <Text style={styles.forYouLabel}>✨ For You</Text>
+            </View>
+            {recommendedPoses.map((pose) => (
+              <PoseCard
+                key={pose.id}
+                pose={pose}
+                active={selected?.id === pose.id}
+                onPress={() => handlePress(pose)}
+                recommended
+              />
+            ))}
+            <View style={styles.divider} />
+          </>
+        )}
+        {otherPoses.map((pose) => (
           <PoseCard
             key={pose.id}
             pose={pose}
             active={selected?.id === pose.id}
-            onPress={() => selectTarget(pose)}
+            onPress={() => handlePress(pose)}
           />
         ))}
       </ScrollView>
@@ -40,14 +79,19 @@ function PoseCard({
   pose,
   active,
   onPress,
+  recommended = false,
 }: {
   pose: PoseTarget;
   active: boolean;
   onPress: () => void;
+  recommended?: boolean;
 }): React.JSX.Element {
   const stars = '★'.repeat(pose.difficulty) + '☆'.repeat(Math.max(0, 5 - pose.difficulty));
   return (
-    <Pressable onPress={onPress} style={[styles.card, active && styles.cardActive]}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.card, recommended && styles.cardRecommended, active && styles.cardActive]}
+    >
       <Text style={styles.glyph}>{CATEGORY_GLYPH[pose.category]}</Text>
       <Text style={styles.name} numberOfLines={1}>
         {pose.name}
@@ -107,6 +151,9 @@ const styles = StyleSheet.create({
     borderColor: '#22C55E',
     backgroundColor: 'rgba(34, 197, 94, 0.18)',
   },
+  cardRecommended: {
+    borderColor: 'rgba(250, 204, 21, 0.55)',
+  },
   glyph: {
     color: '#fff',
     fontSize: 22,
@@ -123,5 +170,21 @@ const styles = StyleSheet.create({
     color: '#FACC15',
     fontSize: 10,
     marginTop: 2,
+  },
+  forYouLabelWrap: {
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+  },
+  forYouLabel: {
+    color: '#FACC15',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  divider: {
+    width: 1,
+    height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    marginHorizontal: 4,
   },
 });
