@@ -1,14 +1,24 @@
 import { useMemo } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { POSE_LIBRARY } from '../../library/poseLibrary';
 import { recommend } from '../../recommendation/recommend';
 import { useCustomPoses } from '../../state/customPoses';
 import { usePoseTarget } from '../../state/poseTarget';
 import { useRecommendationSession } from '../../state/recommendationSession';
+import { useSmartSuggestions } from '../../state/smartSuggestionsState';
 import { useUserProfile } from '../../state/userProfile';
 import type { CapturedPose } from '../../types/customPose';
 import type { PoseCategory, PoseTarget } from '../../types/pose';
+import type { SmartSuggestionError, SmartSuggestionPick } from '../../types/smartSuggestions';
 
 const CATEGORY_GLYPH: Record<PoseCategory, string> = {
   standing: '⏐',
@@ -37,18 +47,52 @@ export function PoseSelector(): React.JSX.Element {
   const shownPoseIds = useRecommendationSession((s) => s.shownPoseIds);
   const markShown = useRecommendationSession((s) => s.markShown);
   const captures = useCustomPoses((s) => s.captures);
+  const smartLoading = useSmartSuggestions((s) => s.loading);
+  const smartResult = useSmartSuggestions((s) => s.result);
+  const smartError = useSmartSuggestions((s) => s.error);
+  const clearSmart = useSmartSuggestions((s) => s.clear);
+
+  const poseById = useMemo(() => {
+    const map = new Map<string, PoseTarget>();
+    for (const pose of POSE_LIBRARY) {
+      map.set(pose.id, pose);
+    }
+    return map;
+  }, []);
+
+  const aiPicks = useMemo(() => {
+    if (!smartResult) return [] as { pick: SmartSuggestionPick; pose: PoseTarget }[];
+    return smartResult.recommendations
+      .map((pick) => {
+        const pose = poseById.get(pick.poseId);
+        return pose ? { pick, pose } : null;
+      })
+      .filter((entry): entry is { pick: SmartSuggestionPick; pose: PoseTarget } => entry !== null);
+  }, [smartResult, poseById]);
+
+  const aiPickIds = useMemo(() => new Set(aiPicks.map((entry) => entry.pose.id)), [aiPicks]);
 
   const { recommendedPoses, otherPoses } = useMemo(() => {
     const result = recommend({ profile, shownPoseIds, limit: RECOMMENDATION_LIMIT });
-    const recIds = new Set(result.recommendations.map((r) => r.pose.id));
-    const recOrdered = result.recommendations.map((r) => r.pose);
-    const others = POSE_LIBRARY.filter((p) => !recIds.has(p.id));
+    // AI picks claim their slot at the top — drop them from the on-device
+    // For You and library tail to avoid showing the same pose twice.
+    const recOrdered = result.recommendations
+      .map((r) => r.pose)
+      .filter((p) => !aiPickIds.has(p.id));
+    const recIds = new Set(recOrdered.map((p) => p.id));
+    const others = POSE_LIBRARY.filter((p) => !recIds.has(p.id) && !aiPickIds.has(p.id));
     return { recommendedPoses: recOrdered, otherPoses: others };
-  }, [profile, shownPoseIds]);
+  }, [profile, shownPoseIds, aiPickIds]);
 
   const handlePress = (pose: PoseTarget): void => {
     selectTarget(pose);
     markShown(pose.id);
+  };
+
+  const handleAiPickLongPress = (pick: SmartSuggestionPick, pose: PoseTarget): void => {
+    Alert.alert(pose.name, pick.reasoning, [{ text: 'OK', style: 'default' }], {
+      cancelable: true,
+    });
   };
 
   const handleCaptureLongPress = (capture: CapturedPose): void => {
@@ -81,6 +125,51 @@ export function PoseSelector(): React.JSX.Element {
         contentContainerStyle={styles.scrollContent}
       >
         <ClearCard active={selected === null} onPress={() => selectTarget(null)} />
+        {smartLoading && (
+          <>
+            <View style={styles.sectionLabelWrap}>
+              <Text style={styles.aiPicksLabel}>🎯 AI Picks</Text>
+            </View>
+            <View style={[styles.card, styles.cardLoading]}>
+              <ActivityIndicator color="#C4B5FD" />
+              <Text style={styles.statusText} numberOfLines={2}>
+                Analyzing scene...
+              </Text>
+            </View>
+            <View style={styles.divider} />
+          </>
+        )}
+        {!smartLoading && smartError && (
+          <>
+            <View style={styles.sectionLabelWrap}>
+              <Text style={styles.aiPicksLabel}>🎯 AI Picks</Text>
+            </View>
+            <Pressable onPress={clearSmart} style={[styles.card, styles.cardError]}>
+              <Text style={styles.glyph}>⚠️</Text>
+              <Text style={styles.statusText} numberOfLines={3}>
+                {errorMessageFor(smartError)}
+              </Text>
+            </Pressable>
+            <View style={styles.divider} />
+          </>
+        )}
+        {!smartLoading && !smartError && aiPicks.length > 0 && (
+          <>
+            <View style={styles.sectionLabelWrap}>
+              <Text style={styles.aiPicksLabel}>🎯 AI Picks</Text>
+            </View>
+            {aiPicks.map(({ pick, pose }) => (
+              <AiPickCard
+                key={pose.id}
+                pose={pose}
+                active={selected?.id === pose.id}
+                onPress={() => handlePress(pose)}
+                onLongPress={() => handleAiPickLongPress(pick, pose)}
+              />
+            ))}
+            <View style={styles.divider} />
+          </>
+        )}
         {recommendedPoses.length > 0 && (
           <>
             <View style={styles.sectionLabelWrap}>
@@ -157,6 +246,52 @@ function PoseCard({
       </Text>
     </Pressable>
   );
+}
+
+function AiPickCard({
+  pose,
+  active,
+  onPress,
+  onLongPress,
+}: {
+  pose: PoseTarget;
+  active: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+}): React.JSX.Element {
+  const stars = '★'.repeat(pose.difficulty) + '☆'.repeat(Math.max(0, 5 - pose.difficulty));
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
+      style={[styles.card, styles.cardAiPick, active && styles.cardActive]}
+    >
+      <Text style={styles.glyph}>{CATEGORY_GLYPH[pose.category]}</Text>
+      <Text style={styles.name} numberOfLines={1}>
+        {pose.name}
+      </Text>
+      <Text style={styles.stars} numberOfLines={1}>
+        {stars}
+      </Text>
+    </Pressable>
+  );
+}
+
+function errorMessageFor(error: SmartSuggestionError): string {
+  switch (error.type) {
+    case 'no-internet':
+      return 'Connect to internet for Smart Picks';
+    case 'rate-limit':
+      return 'Rate limit reached, try again in a minute';
+    case 'timeout':
+      return 'Took too long, tap Smart Picks to retry';
+    case 'api-error':
+      return "Couldn't reach the service, tap to retry";
+    case 'parse-error':
+    case 'no-valid-picks':
+      return "Couldn't generate picks, tap to retry";
+  }
 }
 
 function CaptureCard({
@@ -244,6 +379,23 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 107, 53, 0.65)',
     backgroundColor: 'rgba(255, 107, 53, 0.12)',
   },
+  cardAiPick: {
+    borderColor: '#9333EA',
+    borderWidth: 2,
+    backgroundColor: 'rgba(147, 51, 234, 0.16)',
+  },
+  cardLoading: {
+    borderColor: 'rgba(196, 181, 253, 0.6)',
+    backgroundColor: 'rgba(124, 58, 237, 0.18)',
+    minHeight: 76,
+    justifyContent: 'center',
+  },
+  cardError: {
+    borderColor: 'rgba(248, 113, 113, 0.7)',
+    backgroundColor: 'rgba(127, 29, 29, 0.4)',
+    minHeight: 76,
+    justifyContent: 'center',
+  },
   glyph: {
     color: '#fff',
     fontSize: 22,
@@ -276,6 +428,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  aiPicksLabel: {
+    color: '#C4B5FD',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 6,
+    textAlign: 'center',
   },
   divider: {
     width: 1,

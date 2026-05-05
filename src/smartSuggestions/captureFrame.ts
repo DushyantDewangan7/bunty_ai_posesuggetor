@@ -1,44 +1,67 @@
 /**
- * Frame capture for Phase 4-A smart suggestions.
+ * Frame capture for smart suggestions.
  *
- * Phase 4-A scope (this session): function signature + documentation only.
- * The RN runtime wiring (real camera ref, expo-image-manipulator resize,
- * JPEG re-encode) lands in Phase 4-B alongside SmartSuggestionsButton, where
- * the camera ref and image-manipulator package are wired together with the UI.
+ * Phase 4-B implementation. Captures a single still photo via vision-camera's
+ * photoOutput, decodes + downscales + JPEG re-encodes via Skia, and returns
+ * a base64 string suitable for Gemini's inline_data.
  *
- * The offline harness (scripts/smartSuggestions-harness.mjs) bypasses this
- * module entirely and reads a test image from disk. So Phase 4-A's offline
- * pipeline (prompt build → API call → response parse) can be exercised
- * end-to-end without a device.
+ * Why photoOutput, not cameraRef.takePhoto: vision-camera 5.x removed the
+ * imperative ref-based API in favor of declarative outputs. CameraScreen wires
+ * a CameraPhotoOutput from `usePhotoOutput()` into the Camera's outputs array
+ * (alongside the existing pose output) and passes that handle here.
  *
- * Phase 4-B will install:
- *   - expo-camera (or react-native-view-shot) for `takePictureAsync` / capture
- *   - expo-image-manipulator for resize + JPEG re-encode at quality 80
+ * Why Skia for resize, not react-native-image-resizer: Skia is already a dep
+ * for the pose overlay rendering. Adding a second native image library for
+ * one resize call would force a prebuild and grow the binary for no benefit.
+ * `MakeImageFromEncoded` + offscreen `Surface` + `encodeToBase64` covers it.
  *
- * Output contract: base64 string with no data-URL prefix, JPEG-encoded,
- * downscaled to fit within MAX_DIMENSION x MAX_DIMENSION while preserving
- * aspect ratio.
+ * Output: base64 string (no data-URL prefix), JPEG-encoded, longest side fits
+ * within MAX_DIMENSION while preserving aspect ratio.
  */
+
+import { ImageFormat, Skia } from '@shopify/react-native-skia';
+import type { CameraPhotoOutput } from 'react-native-vision-camera';
 
 export const MAX_DIMENSION = 768;
 export const JPEG_QUALITY = 80;
 
-/**
- * Phase 4-B will replace this opaque type with the actual camera ref shape
- * (e.g. `RefObject<Camera>` from expo-camera). Kept as `unknown` to avoid
- * pulling RN-only types into modules that the harness imports.
- */
-export type CameraRefLike = unknown;
+export async function captureCurrentFrame(photoOutput: CameraPhotoOutput): Promise<string> {
+  const photo = await photoOutput.capturePhoto({ flashMode: 'off', enableShutterSound: false }, {});
 
-/**
- * Capture the current camera frame and return it as a base64 JPEG string.
- *
- * @throws Error("Phase 4-B not yet implemented") — until Phase 4-B wires
- *         expo-camera + expo-image-manipulator. Use the harness for offline
- *         pipeline testing.
- */
-export async function captureCurrentFrame(_cameraRef: CameraRefLike): Promise<string> {
-  throw new Error(
-    'captureCurrentFrame: not implemented in Phase 4-A. Wire expo-camera + expo-image-manipulator in Phase 4-B; use scripts/smartSuggestions-harness.mjs for offline testing.',
+  let encodedBytes: ArrayBuffer;
+  try {
+    encodedBytes = await photo.getFileDataAsync();
+  } finally {
+    photo.dispose();
+  }
+
+  const data = Skia.Data.fromBytes(new Uint8Array(encodedBytes));
+  const sourceImage = Skia.Image.MakeImageFromEncoded(data);
+  if (!sourceImage) {
+    throw new Error('captureCurrentFrame: Skia could not decode captured photo');
+  }
+
+  const sw = sourceImage.width();
+  const sh = sourceImage.height();
+  const longest = Math.max(sw, sh);
+  const scale = longest > MAX_DIMENSION ? MAX_DIMENSION / longest : 1;
+  const targetW = Math.max(1, Math.round(sw * scale));
+  const targetH = Math.max(1, Math.round(sh * scale));
+
+  const surface = Skia.Surface.MakeOffscreen(targetW, targetH);
+  if (!surface) {
+    throw new Error('captureCurrentFrame: Skia could not allocate offscreen surface');
+  }
+
+  const canvas = surface.getCanvas();
+  const paint = Skia.Paint();
+  canvas.drawImageRect(
+    sourceImage,
+    Skia.XYWHRect(0, 0, sw, sh),
+    Skia.XYWHRect(0, 0, targetW, targetH),
+    paint,
   );
+
+  const snapshot = surface.makeImageSnapshot();
+  return snapshot.encodeToBase64(ImageFormat.JPEG, JPEG_QUALITY);
 }

@@ -5,11 +5,7 @@ import type { UserProfile } from '../../types/userProfile';
 import type { RichPose } from '../../types/poseMetadata';
 import type { SmartSuggestionRequest } from '../../types/smartSuggestions';
 
-import {
-  buildSystemPrompt,
-  buildUserMessage,
-  projectPoseForAgent,
-} from '../buildPrompt.ts';
+import { buildSystemPrompt, buildUserMessage, projectPoseForAgent } from '../buildPrompt.ts';
 
 const sampleRichPose: RichPose = {
   id: 'sample-stand',
@@ -69,7 +65,6 @@ describe('projectPoseForAgent', () => {
     const expectedKeys = [
       'id',
       'name',
-      'description',
       'category',
       'tags',
       'difficulty',
@@ -86,6 +81,7 @@ describe('projectPoseForAgent', () => {
     assert.equal('groupSize' in projected, false);
     assert.equal('recommendedClothing' in projected, false);
     assert.equal('imageAttribution' in projected, false);
+    assert.equal('description' in projected, false);
   });
 });
 

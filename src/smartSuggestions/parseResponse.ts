@@ -77,15 +77,15 @@ export function parseGeminiResponse(
     }
     validPicks.push({
       poseId,
-      reasoning: reasoning.length > REASONING_MAX_CHARS
-        ? reasoning.slice(0, REASONING_MAX_CHARS)
-        : reasoning,
+      reasoning:
+        reasoning.length > REASONING_MAX_CHARS
+          ? reasoning.slice(0, REASONING_MAX_CHARS)
+          : reasoning,
       rank: typeof rank === 'number' && Number.isFinite(rank) ? rank : 0,
     });
   }
 
   if (droppedIds.length > 0) {
-    // eslint-disable-next-line no-console
     console.warn(
       `[smartSuggestions] dropped ${droppedIds.length} hallucinated pose id(s): ${droppedIds.join(', ')}`,
     );

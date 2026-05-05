@@ -1,13 +1,10 @@
-import type {
-  SmartSuggestionError,
-  SmartSuggestionRequest,
-} from '../types/smartSuggestions';
+import type { SmartSuggestionError, SmartSuggestionRequest } from '../types/smartSuggestions';
 
 import { buildSystemPrompt, buildUserMessage } from './buildPrompt.ts';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MODEL = 'gemini-2.5-flash';
-const TIMEOUT_MS = 10_000;
+const TIMEOUT_MS = 20_000;
 
 /**
  * Call the Gemini 2.5 Flash API with the request payload + image.
@@ -18,8 +15,10 @@ const TIMEOUT_MS = 10_000;
  * Error instances because the union shape is what the UI maps to user-facing
  * messages; wrapping in Error would require unwrapping at the call site.
  *
- * `timeoutMs` defaults to TIMEOUT_MS (10 s, the spec value for production
- * use). The harness overrides it to give Gemini room when the API is slow.
+ * `timeoutMs` defaults to TIMEOUT_MS (20 s). Phase 4-A harness measured ~9.4 s
+ * end-to-end against a 10 s timeout (0.6 s margin = intermittent timeouts in
+ * production), so we doubled the budget. Harness still overrides for
+ * diagnostic runs.
  */
 export async function callGeminiAPI(
   request: SmartSuggestionRequest,

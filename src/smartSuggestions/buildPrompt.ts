@@ -1,8 +1,5 @@
 import type { RichPose } from '../types/poseMetadata';
-import type {
-  PoseMetadataForAgent,
-  SmartSuggestionRequest,
-} from '../types/smartSuggestions';
+import type { PoseMetadataForAgent, SmartSuggestionRequest } from '../types/smartSuggestions';
 
 /**
  * Project a RichPose down to the slim PoseMetadataForAgent shape.
@@ -10,13 +7,12 @@ import type {
  * Drops fields the model has no use for: referenceLandmarks (33 × {x,y,z,vis}
  * adds ~2 KB per pose with no scene-reasoning value), bodyTypeHints
  * (placeholder until classifier exists), groupSize, recommendedClothing,
- * imageAttribution.
+ * imageAttribution, description (verbose; name + tags + category cover it).
  */
 export function projectPoseForAgent(pose: RichPose): PoseMetadataForAgent {
   return {
     id: pose.id,
     name: pose.name,
-    description: pose.description,
     category: pose.category,
     tags: pose.tags,
     difficulty: pose.difficulty,
@@ -39,7 +35,7 @@ export function buildSystemPrompt(): string {
 You will receive:
   1. A photo of the user's current scene (front-camera frame).
   2. A user profile (gender, height bucket, face shape).
-  3. A library of available poses with metadata (id, name, description, category, tags, difficulty, genderOrientation, moodTags, useCase, lightingRecommendation, locationType).
+  3. A library of available poses with metadata (id, name, category, tags, difficulty, genderOrientation, moodTags, useCase, lightingRecommendation, locationType).
   4. A list of pose IDs already shown this session.
 
 Your task: pick 3 to 5 poses from the library that best fit the scene and user.
@@ -95,5 +91,14 @@ export function buildUserMessage(request: SmartSuggestionRequest): {
     2,
   )}\n\nAnalyze the attached photo and produce the JSON object as specified.`;
 
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    // Rough token estimate: ~4 chars/token. Useful tripwire if library grows.
+    console.log(
+      `[smartSuggestions] user prompt: ${text.length} chars (~${Math.ceil(text.length / 4)} tokens)`,
+    );
+  }
+
   return { text, image: request.frameBase64 };
 }
+
+declare const __DEV__: boolean | undefined;

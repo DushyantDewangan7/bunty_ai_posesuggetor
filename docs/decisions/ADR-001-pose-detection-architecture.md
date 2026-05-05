@@ -461,3 +461,38 @@ Phase 4-A introduces "Smart Suggestions": the user taps a button, the app captur
 - Phase 4-F: device APK build + install.
 - Consent flow — explicitly deferred per spec's personal-scope rule.
 
+### G22. Phase 4-B Smart Suggestions UI integration (2026-05-05)
+
+Phase 4-B wires the Phase 4-A backend modules (G21) into the camera screen as a visible feature: a "Smart Picks" button on `CameraScreen`, a fresh "🎯 AI Picks" section at the head of `PoseSelector`, and full lifecycle state (idle / loading / result / error). 8/8 on-device verifications green on Galaxy device this session.
+
+**Button placement and state.** [`SmartSuggestionsButton`](../../src/ui/components/SmartSuggestionsButton.tsx) sits bottom-left, mirroring the orange `CaptureButton` on the right (72 px circle, `top: '50%'`, `marginTop: -36`). Purple fill (#7C3AED) with a #9333EA border; loading swaps the 🎯 emoji for an `ActivityIndicator`; disabled greys out when no `photoOutput`, when a request is in flight, or when onboarding is incomplete. Lifecycle state lives in [`src/state/smartSuggestionsState.ts`](../../src/state/smartSuggestionsState.ts) — a zustand store with `loading`, `result`, `error` and four actions (`startRequest`, `setResult`, `setError`, `clear`). Intentionally NOT persisted: matches Phase 3B's session-novelty model (a fresh launch deserves a fresh suggestion run, not a stale cached pick).
+
+**Frame capture: photoOutput + Skia (deviates from spec's takePhoto + image-resizer).** Phase 4-A's `captureFrame.ts` was a stub; the spec called for `cameraRef.takePhoto()` + `react-native-image-resizer`. Vision-camera 5.x removed the imperative ref API in favour of declarative outputs, so we wired a `usePhotoOutput({ targetResolution: 1280×720, qualityPrioritization: 'speed' })` on `CameraScreen` alongside the existing pose output and pass the handle into the button. Skia (already a dep for the pose overlay) handles decode + resize + JPEG re-encode to base64 in three calls — `MakeImageFromEncoded` → offscreen `Surface.MakeOffscreen(targetW, targetH)` + `drawImageRect` for the scale → `encodeToBase64(JPEG, 80)`. **Net effect: zero new native dependencies, no prebuild change.** Also explicit `photo.dispose()` in a `finally` to release the in-memory Photo before Skia decodes the bytes (per the vision-camera docs' warning about JS runtime leaks).
+
+**API timeout doubled from 10 s → 20 s + prompt slimmed.** G21 flagged 9.4 s observed Gemini latency vs the spec's 10 s timeout = 0.6 s margin = intermittent prod timeouts. Tonight's harness re-run on the new build measured 13.5 s — confirming the original margin would have failed regularly. [`callGeminiAPI.ts`](../../src/smartSuggestions/callGeminiAPI.ts) now defaults `TIMEOUT_MS = 20_000`. Separately, `description` was dropped from `PoseMetadataForAgent` (type, projection, system-prompt schema list) — name + tags + category cover pose semantics for the model and the verbose description was the dominant token contributor with the largest churn potential as the library grows. Dev-only `console.log` of prompt size (chars / ~tokens) added inside `buildUserMessage` as a tripwire for future library expansion.
+
+**AI Picks section in PoseSelector.** Render order changed: clear → AI Picks (new) → For You → My Poses → tail library. Cards use `borderColor: #9333EA, borderWidth: 2px` over `rgba(147, 51, 234, 0.16)` background; same category-glyph treatment as library cards; same `selectTarget + markShown` on tap (so AI picks participate in the session-novelty machinery from Phase 3B). Long-press shows the agent's reasoning in an `Alert.alert` titled with the pose name — discoverable detail without crowding the strip. Loading inlines a single card with a violet `ActivityIndicator` and "Analyzing scene…". Error inlines a red ⚠️ card whose label is mapped per `SmartSuggestionError.type` (no-internet → "Connect to internet for Smart Picks"; rate-limit → "Rate limit reached, try again in a minute"; timeout → "Took too long, tap Smart Picks to retry"; api-error → "Couldn't reach the service, tap to retry"; parse-error / no-valid-picks → "Couldn't generate picks, tap to retry") and tap-to-clear (returns to idle so the user can re-tap the Smart Picks button).
+
+**Picks dedupe across sections.** AI-recommended pose IDs are removed from the Phase 3B "For You" list and from the library tail before render — otherwise a hot pose ("hands-hips") could appear three times. The dedupe is applied in `useMemo` keyed on `aiPickIds`, so updates re-flow only when picks change.
+
+**API key embedding.** App reads `process.env.EXPO_PUBLIC_GEMINI_API_KEY`. Added that line to `.env` alongside the existing `GEMINI_API_KEY` so both the bundle (Metro injects `EXPO_PUBLIC_*`) and the harness (its own parser) keep working without coordinating naming. Personal-scope-only rule from the spec still applies — backend proxy is a future phase.
+
+**Build / install / Metro environment notes.**
+- **Memory pressure**: first two gradle invocations crashed with JVM `OutOfMemoryError` / "paging file is too small" at the Kotlin daemon spawn. Host had 0.4–0.7 GB free virtual memory at the time. After freeing RAM (back to ~11 GB free virtual), `assembleDebug` finished cleanly in 9 m 28 s.
+- **Port collision on 8081**: VS Code's redhat.java extension was bound to `127.0.0.1:8081`. Metro's IPv6-only bind on `::8081` then served IPv6 fine but `adb reverse tcp:8081 tcp:8081` (IPv4-targeted) hit redhat.java instead and produced "connection refused / Retry" in expo-dev-launcher. Fix: run Metro on `--port 8082` and `adb reverse tcp:8082 tcp:8082`, then deep-link the dev-launcher via `am start -a android.intent.action.VIEW -d "exp+aiposesuggestor://expo-development-client/?url=http://127.0.0.1:8082"`.
+
+**On-device verification (8/8 PASS).** Smart Picks button visible with 🎯 emoji bottom-left, mirroring the orange Capture button. Tap → "Analyzing scene…" spinner ~5–15 s. Result renders 3–5 purple-bordered AI Picks distinct from yellow For You cards. Long-press shows the reasoning alert. Tap selects the pose, ghost target + fit % work like a regular library pose. Disabling internet + tap surfaces "Connect to internet for Smart Picks" with ⚠️. Re-enabling internet + retap recovers cleanly.
+
+Files of interest:
+- [src/ui/components/SmartSuggestionsButton.tsx](../../src/ui/components/SmartSuggestionsButton.tsx) — button + tap handler.
+- [src/ui/components/PoseSelector.tsx](../../src/ui/components/PoseSelector.tsx) — AI Picks section + error/loading mapping + dedupe.
+- [src/state/smartSuggestionsState.ts](../../src/state/smartSuggestionsState.ts) — zustand store, not persisted.
+- [src/smartSuggestions/captureFrame.ts](../../src/smartSuggestions/captureFrame.ts) — `photoOutput.capturePhoto` → Skia resize → base64.
+- [src/ui/screens/CameraScreen.tsx](../../src/ui/screens/CameraScreen.tsx) — `usePhotoOutput` wired into the Camera's outputs, `SmartSuggestionsButton` mounted as a `CaptureButton` sibling.
+
+**Out of scope, deferred to subsequent 4-x:**
+- Phase 4-C: result caching (avoid duplicate Gemini calls for the same scene + profile).
+- Phase 4-D: rate limiting (per-user per-day budget).
+- Backend proxy + consent flow — public-distribution prerequisites, not for this scope.
+- Recapture latency reduction (the 13–14 s wait is dominated by Gemini server time; investigate prompt shrinkage further or move to streaming).
+

@@ -21,11 +21,7 @@ function envelope(innerText: string): string {
 }
 
 function getErrorPayload(err: unknown): SmartSuggestionError {
-  if (
-    typeof err === 'object' &&
-    err !== null &&
-    'errorPayload' in err
-  ) {
+  if (typeof err === 'object' && err !== null && 'errorPayload' in err) {
     return (err as { errorPayload: SmartSuggestionError }).errorPayload;
   }
   throw new Error('error did not have errorPayload property');
@@ -122,9 +118,7 @@ describe('parseGeminiResponse', () => {
   it('trims reasoning longer than 200 chars', () => {
     const longReason = 'x'.repeat(500);
     const inner = JSON.stringify({
-      recommendations: [
-        { poseId: 'tpose', reasoning: longReason, rank: 1 },
-      ],
+      recommendations: [{ poseId: 'tpose', reasoning: longReason, rank: 1 }],
     });
     const result = parseGeminiResponse(envelope(inner), LIBRARY_IDS);
     assert.equal(result.recommendations[0]!.reasoning.length, 200);

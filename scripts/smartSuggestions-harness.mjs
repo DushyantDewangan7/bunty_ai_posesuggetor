@@ -65,7 +65,7 @@ function describeError(err) {
   if (err && typeof err === 'object' && 'errorPayload' in err) {
     return `[smart-suggestion-error] ${JSON.stringify(err.errorPayload)}`;
   }
-  return `[unexpected] ${err instanceof Error ? err.stack ?? err.message : String(err)}`;
+  return `[unexpected] ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`;
 }
 
 async function main() {
@@ -80,7 +80,9 @@ async function main() {
   let apiKey;
   try {
     apiKey = await loadApiKey();
-    console.log(`[harness] API key loaded (${apiKey.length} chars, prefix ${apiKey.slice(0, 4)}***)`);
+    console.log(
+      `[harness] API key loaded (${apiKey.length} chars, prefix ${apiKey.slice(0, 4)}***)`,
+    );
   } catch (err) {
     console.error(`[harness] FAILED to load API key: ${err.message}`);
     process.exit(1);
@@ -100,7 +102,12 @@ async function main() {
   // within MAX_DIMENSION x MAX_DIMENSION, JPEG quality 80, preserve aspect.
   const downscaled = await sharp(originalBuffer)
     .rotate()
-    .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+    .resize({
+      width: MAX_DIMENSION,
+      height: MAX_DIMENSION,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
     .jpeg({ quality: JPEG_QUALITY })
     .toBuffer();
   const frameBase64 = downscaled.toString('base64');

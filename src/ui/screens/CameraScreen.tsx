@@ -2,7 +2,12 @@ import { Canvas } from '@shopify/react-native-skia';
 import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { openSettings } from 'react-native-permissions';
-import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+  usePhotoOutput,
+} from 'react-native-vision-camera';
 
 import { usePoseLandmarkerOutput } from '../../camera/usePoseLandmarkerOutput';
 import { matchPose } from '../../recommendation/poseMatch';
@@ -14,6 +19,7 @@ import { MockPoseControls } from '../components/MockPoseControls';
 import { PoseSelector } from '../components/PoseSelector';
 import { PoseTargetOverlay } from '../components/PoseTargetOverlay';
 import { SettingsButton } from '../components/SettingsButton';
+import { SmartSuggestionsButton } from '../components/SmartSuggestionsButton';
 import { PoseSkeleton } from '../overlays/PoseSkeleton';
 import { FaceCaptureScreen } from './onboarding/FaceCaptureScreen';
 import { SettingsModal } from './SettingsModal';
@@ -37,6 +43,14 @@ export function CameraScreen(): React.JSX.Element {
   // thread inside HybridPoseLandmarkerOutput (no worklet, no JSI host-function
   // dispatch from the worklet runtime). Per ADR-001 G14, 2026-05-03.
   const poseOutput = usePoseLandmarkerOutput();
+
+  // Phase 4-B G22: photo output for SmartSuggestions. capturePhoto returns
+  // an in-memory Photo we decode + resize via Skia (see captureFrame.ts).
+  // Sized down so the still capture fits the same negotiation as pose preview.
+  const photoOutput = usePhotoOutput({
+    targetResolution: { width: 1280, height: 720 },
+    qualityPrioritization: 'speed',
+  });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [recapturing, setRecapturing] = useState(false);
@@ -113,7 +127,7 @@ export function CameraScreen(): React.JSX.Element {
         style={StyleSheet.absoluteFill}
         device={device}
         isActive={true}
-        outputs={[poseOutput]}
+        outputs={[poseOutput, photoOutput]}
       />
       <Canvas style={StyleSheet.absoluteFill}>
         <PoseTargetOverlay mirrored={false} />
@@ -122,6 +136,7 @@ export function CameraScreen(): React.JSX.Element {
       <MatchFeedback />
       <PoseSelector />
       <CaptureButton />
+      <SmartSuggestionsButton photoOutput={photoOutput} />
       <MockPoseControls />
       <DebugOverlay />
       <SettingsButton onPress={() => setSettingsOpen(true)} />

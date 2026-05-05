@@ -11,12 +11,13 @@ import type {
 /**
  * Slim projection of RichPose passed into the Gemini prompt. Drops fields the
  * model does not need (referenceLandmarks, bodyTypeHints, groupSize,
- * recommendedClothing, imageAttribution) to keep the input token count down.
+ * recommendedClothing, imageAttribution, description) to keep the input token
+ * count down. The model can infer pose semantics from name + tags + category
+ * without the verbose description field.
  */
 export interface PoseMetadataForAgent {
   id: string;
   name: string;
-  description: string;
   category: RichPoseCategory;
   tags: string[];
   difficulty: number;
