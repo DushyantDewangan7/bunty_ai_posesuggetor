@@ -1,0 +1,31 @@
+import { Pressable, StyleSheet, Text } from 'react-native';
+
+interface Props {
+  onPress: () => void;
+}
+
+export function SettingsButton({ onPress }: Props): React.JSX.Element {
+  return (
+    <Pressable onPress={onPress} style={styles.button}>
+      <Text style={styles.icon}>⚙️</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  icon: {
+    fontSize: 20,
+  },
+});

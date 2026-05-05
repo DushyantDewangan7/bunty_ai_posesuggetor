@@ -1,5 +1,5 @@
 import { Canvas } from '@shopify/react-native-skia';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { openSettings } from 'react-native-permissions';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
@@ -13,7 +13,10 @@ import { MatchFeedback } from '../components/MatchFeedback';
 import { MockPoseControls } from '../components/MockPoseControls';
 import { PoseSelector } from '../components/PoseSelector';
 import { PoseTargetOverlay } from '../components/PoseTargetOverlay';
+import { SettingsButton } from '../components/SettingsButton';
 import { PoseSkeleton } from '../overlays/PoseSkeleton';
+import { FaceCaptureScreen } from './onboarding/FaceCaptureScreen';
+import { SettingsModal } from './SettingsModal';
 
 const CAMERA_RATIONALE =
   'AI Pose Suggestor needs camera access to suggest poses based on your body and surroundings. Your camera frames never leave your device.';
@@ -34,6 +37,9 @@ export function CameraScreen(): React.JSX.Element {
   // thread inside HybridPoseLandmarkerOutput (no worklet, no JSI host-function
   // dispatch from the worklet runtime). Per ADR-001 G14, 2026-05-03.
   const poseOutput = usePoseLandmarkerOutput();
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [recapturing, setRecapturing] = useState(false);
 
   useEffect(() => {
     if (!hasPermission) {
@@ -82,6 +88,25 @@ export function CameraScreen(): React.JSX.Element {
     );
   }
 
+  // Re-capture face flow: unmount the back-camera pose preview entirely so the
+  // front-camera FaceCaptureScreen owns the device. On capture or cancel,
+  // return to the SettingsModal opened.
+  if (recapturing) {
+    return (
+      <FaceCaptureScreen
+        mode="recapture"
+        onCaptured={() => {
+          setRecapturing(false);
+          setSettingsOpen(true);
+        }}
+        onCancel={() => {
+          setRecapturing(false);
+          setSettingsOpen(true);
+        }}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Camera
@@ -99,6 +124,15 @@ export function CameraScreen(): React.JSX.Element {
       <CaptureButton />
       <MockPoseControls />
       <DebugOverlay />
+      <SettingsButton onPress={() => setSettingsOpen(true)} />
+      <SettingsModal
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onRequestRecapture={() => {
+          setSettingsOpen(false);
+          setRecapturing(true);
+        }}
+      />
     </View>
   );
 }

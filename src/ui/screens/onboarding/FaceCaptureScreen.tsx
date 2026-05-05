@@ -14,11 +14,19 @@ import { COLORS, RADII, SPACING } from './theme';
 const CAMERA_RATIONALE =
   'We use the front camera once to detect your face shape — frames stay on the device and are never uploaded.';
 
+type Mode = 'onboarding' | 'recapture';
+
 interface Props {
   onCaptured: (shape: FaceShape) => void;
+  mode?: Mode;
+  onCancel?: () => void;
 }
 
-export function FaceCaptureScreen({ onCaptured }: Props): React.JSX.Element {
+export function FaceCaptureScreen({
+  onCaptured,
+  mode = 'onboarding',
+  onCancel,
+}: Props): React.JSX.Element {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('front');
 
@@ -52,15 +60,17 @@ export function FaceCaptureScreen({ onCaptured }: Props): React.JSX.Element {
     );
   }
 
-  return <CapturePreview device={device} onCaptured={onCaptured} />;
+  return <CapturePreview device={device} onCaptured={onCaptured} mode={mode} onCancel={onCancel} />;
 }
 
 interface PreviewProps {
   device: NonNullable<ReturnType<typeof useCameraDevice>>;
   onCaptured: (shape: FaceShape) => void;
+  mode: Mode;
+  onCancel: (() => void) | undefined;
 }
 
-function CapturePreview({ device, onCaptured }: PreviewProps): React.JSX.Element {
+function CapturePreview({ device, onCaptured, mode, onCancel }: PreviewProps): React.JSX.Element {
   const faceOutput = useFaceLandmarkerOutput();
   const setFaceShape = useUserProfile((s) => s.setFaceShape);
   const isCentered = useFaceCapture((s) => s.isCentered);
@@ -87,13 +97,25 @@ function CapturePreview({ device, onCaptured }: PreviewProps): React.JSX.Element
       <FaceGuide isCentered={isCentered} />
       <SafeAreaView style={styles.overlayChrome} pointerEvents="box-none">
         <View style={styles.header}>
-          <Text style={styles.step}>3 of 3</Text>
+          {mode === 'onboarding' ? (
+            <Text style={styles.step}>3 of 3</Text>
+          ) : (
+            <Text style={styles.step}>Re-capture face</Text>
+          )}
           <Text style={styles.title}>Position your face inside the oval</Text>
           <Text style={styles.subtitle}>
             {isCentered ? 'Looking good — tap Capture.' : 'Move closer or recenter your face.'}
           </Text>
         </View>
         <View style={styles.footer}>
+          {mode === 'recapture' && onCancel ? (
+            <Pressable
+              onPress={onCancel}
+              style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelPressed]}
+            >
+              <Text style={styles.cancelLabel}>Cancel</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             disabled={!isCentered || busy}
             onPress={handleCapture}
@@ -196,6 +218,20 @@ const styles = StyleSheet.create({
     color: COLORS.accentText,
     fontSize: 17,
     fontWeight: '700',
+  },
+  cancelButton: {
+    paddingVertical: SPACING.md,
+    borderRadius: RADII.md,
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  cancelPressed: {
+    opacity: 0.6,
+  },
+  cancelLabel: {
+    color: COLORS.textMuted,
+    fontSize: 15,
+    fontWeight: '600',
   },
   permissionRoot: {
     flex: 1,

@@ -394,3 +394,21 @@ Files of interest:
 - [src/ui/components/CaptureNameDialog.tsx](../../src/ui/components/CaptureNameDialog.tsx) — name/category/difficulty modal.
 - [src/ui/components/PoseSelector.tsx](../../src/ui/components/PoseSelector.tsx) — "📌 My Poses" section + long-press delete.
 
+### G19. Settings / profile-edit pattern — slide-up modal, separate destructive actions, re-capture flow distinct from direct edits (2026-05-05)
+
+Profile editing post-onboarding is a slide-up modal sheet hosted from CameraScreen rather than a navigated screen — the user stays one tap away from the camera and we avoid pulling in React Navigation just to expose a single screen. The gear ⚙️ button is mounted absolute top-right of the camera preview with `zIndex: 100` so it floats above the Skia overlay.
+
+Three editable categories surface differently because they have different lifecycles:
+
+- **Direct edits (gender, height)** — tap the new option and it persists immediately via the existing `setGender` / `setHeightBucket` store actions. No save button.
+- **Face shape (re-capture only)** — face shape is derived geometrically from a photo, not user-typed, so the field is a non-interactive readonly box plus a "Re-capture face" button. Tapping it lifts state up to CameraScreen, which unmounts the back-camera preview and renders [FaceCaptureScreen](../../src/ui/screens/onboarding/FaceCaptureScreen.tsx) with `mode="recapture"` (same component used in onboarding, just with the "3 of 3" step label replaced and a Cancel button added). On either capture or cancel, return to the settings modal opened.
+- **Destructive actions** — "Re-do onboarding" (`useUserProfile.reset`) and "Clear all my poses" (`useCustomPoses.reset`) are deliberately split. They reset different stores and represent different user intents; combining them would couple two unrelated decisions and force a user who only wants to clear poses to also re-do onboarding (or vice versa). Both are gated by a per-action `Alert.alert` confirm.
+
+**Touch-priority gotcha.** The modal sheet uses a sibling `Pressable absoluteFill` backdrop, **not** a parent Pressable wrapping the sheet. The wrapping form competes with the inner `ScrollView` for touch responder priority — symptom on debug builds is sluggish "tap to open" and laggy scrolling inside the sheet. Sibling layout (backdrop Pressable rendered first, sheet rendered on top) preserves ScrollView's exclusive ownership of vertical-drag gestures.
+
+Files of interest:
+- [src/ui/components/SettingsButton.tsx](../../src/ui/components/SettingsButton.tsx) — gear ⚙️, 40 px circular, semi-transparent.
+- [src/ui/screens/SettingsModal.tsx](../../src/ui/screens/SettingsModal.tsx) — modal sheet, four sections (gender / height / face shape / profile actions).
+- [src/ui/screens/CameraScreen.tsx](../../src/ui/screens/CameraScreen.tsx) — owns `settingsOpen` and `recapturing` state; early-returns FaceCaptureScreen in recapture mode so the back-camera Camera unmounts cleanly.
+- [src/ui/screens/onboarding/FaceCaptureScreen.tsx](../../src/ui/screens/onboarding/FaceCaptureScreen.tsx) — accepts optional `mode: 'onboarding' | 'recapture'` and `onCancel` props; OnboardingNavigator usage unchanged (defaults to onboarding).
+
