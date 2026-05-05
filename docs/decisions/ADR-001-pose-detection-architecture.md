@@ -373,3 +373,24 @@ Files of interest:
 - [src/state/recommendationSession.ts](../../src/state/recommendationSession.ts) — Zustand session-scoped shown set.
 - [src/library/poseLibrary.ts](../../src/library/poseLibrary.ts) — adds `RICH_POSE_LIBRARY` and `getRichPoseById`.
 
+### G18. Pose capture flow — captured poses live in a separate store, not the library (2026-05-05)
+
+User-captured reference poses ("save my current pose as a target") are stored in a dedicated MMKV-backed Zustand store at [src/state/customPoses.ts](../../src/state/customPoses.ts), **not** mixed into `RICH_POSE_LIBRARY` or `POSE_LIBRARY`. The library is the curated, offline-pipeline-produced catalog; mixing user data in would conflate two different lifecycles (curated content vs. local user data) and break the recommendation engine which assumes Rich metadata. Captured poses participate in matching and selection — they're adapted to `PoseTarget` at render time via [`captureToPoseTarget`](../../src/ui/components/PoseSelector.tsx) — but stay out of the recommendation pipeline.
+
+Schema is `CapturedPose` in [src/types/customPose.ts](../../src/types/customPose.ts), a deliberately leaner cousin of `RichPose`: only the user-supplied fields (`name`, `category`, `difficulty`) plus the two landmark arrays the runtime needs (`imageLandmarks` for ghost rendering, `referenceLandmarks` for matching). No thumbnails, no Rich metadata fields, no offline pipeline involvement. `version: 1` is included on every record so the loader can defensively filter out future-incompatible entries.
+
+Validation lives in [src/ml/poseValidation.ts](../../src/ml/poseValidation.ts) and gates the capture button: 30 of 33 landmarks must have `visibility >= 0.5`, and the four normalization anchors (left/right shoulders 11/12, left/right hips 23/24) must each be visible. These thresholds mirror the offline pipeline's quality bar so a captured pose is comparable in quality to a curated one — without that, matching against a low-quality capture would silently produce noise.
+
+**Frame-staleness gotcha.** [src/camera/usePoseLandmarkerOutput.ts](../../src/camera/usePoseLandmarkerOutput.ts) and the underlying `HybridPoseLandmarkerOutput.kt` drop frames silently when MediaPipe finds no person (the analyzer returns early without invoking the JS callback). That means `usePoseStream.latestFrame` retains the **last good frame indefinitely** after the user steps out of frame — every consumer that just reads `latestFrame` will see a "valid" pose forever. The CaptureButton works around this with a local 250 ms tick that compares `now - latestFrame.timestamp` against a 500 ms staleness threshold; stale frames are treated as "no pose" so the button greys out promptly. Anything else that needs a "person currently in frame" signal should do the same comparison rather than trust `latestFrame` alone.
+
+UI: [src/ui/components/CaptureButton.tsx](../../src/ui/components/CaptureButton.tsx) (right-edge orange/grey 📌 button) and [src/ui/components/CaptureNameDialog.tsx](../../src/ui/components/CaptureNameDialog.tsx) (Modal with name + 3 categories — `lifestyle`/`group` excluded as too rare for capture — + 1–5 difficulty). [src/ui/components/PoseSelector.tsx](../../src/ui/components/PoseSelector.tsx) renders a "📌 My Poses" section between "✨ For You" and the rest of the library, with orange-tinted card borders to distinguish them from yellow recommendations and the default white border. Long-press on a captured card triggers an `Alert.alert` confirm-delete (delete-and-recapture is the only edit path; in-place editing is intentionally not supported for v1).
+
+Files of interest:
+- [src/types/customPose.ts](../../src/types/customPose.ts) — `CapturedPose` schema (v1).
+- [src/state/customPoses.ts](../../src/state/customPoses.ts) — MMKV-backed Zustand store (id `custom-poses`, key `captures.v1`).
+- [src/ml/poseValidation.ts](../../src/ml/poseValidation.ts) — `validateForCapture`, mirrors offline pipeline thresholds.
+- [src/ml/poseValidation.test.ts](../../src/ml/poseValidation.test.ts) — 5 unit cases (null, 33-visible, 25-visible, anchor occlusion, etc.).
+- [src/ui/components/CaptureButton.tsx](../../src/ui/components/CaptureButton.tsx) — staleness-aware capture trigger.
+- [src/ui/components/CaptureNameDialog.tsx](../../src/ui/components/CaptureNameDialog.tsx) — name/category/difficulty modal.
+- [src/ui/components/PoseSelector.tsx](../../src/ui/components/PoseSelector.tsx) — "📌 My Poses" section + long-press delete.
+

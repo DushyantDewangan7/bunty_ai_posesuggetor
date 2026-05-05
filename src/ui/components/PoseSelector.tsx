@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { POSE_LIBRARY } from '../../library/poseLibrary';
 import { recommend } from '../../recommendation/recommend';
+import { useCustomPoses } from '../../state/customPoses';
 import { usePoseTarget } from '../../state/poseTarget';
 import { useRecommendationSession } from '../../state/recommendationSession';
 import { useUserProfile } from '../../state/userProfile';
+import type { CapturedPose } from '../../types/customPose';
 import type { PoseCategory, PoseTarget } from '../../types/pose';
 
 const CATEGORY_GLYPH: Record<PoseCategory, string> = {
@@ -17,12 +19,24 @@ const CATEGORY_GLYPH: Record<PoseCategory, string> = {
 
 const RECOMMENDATION_LIMIT = 3;
 
+function captureToPoseTarget(c: CapturedPose): PoseTarget {
+  return {
+    id: c.id,
+    name: c.name,
+    category: c.category,
+    description: `Captured ${new Date(c.capturedAt).toLocaleDateString()}`,
+    referenceLandmarks: c.referenceLandmarks,
+    difficulty: c.difficulty,
+  };
+}
+
 export function PoseSelector(): React.JSX.Element {
   const selected = usePoseTarget((s) => s.selected);
   const selectTarget = usePoseTarget((s) => s.selectTarget);
   const profile = useUserProfile((s) => s.profile);
   const shownPoseIds = useRecommendationSession((s) => s.shownPoseIds);
   const markShown = useRecommendationSession((s) => s.markShown);
+  const captures = useCustomPoses((s) => s.captures);
 
   const { recommendedPoses, otherPoses } = useMemo(() => {
     const result = recommend({ profile, shownPoseIds, limit: RECOMMENDATION_LIMIT });
@@ -37,6 +51,28 @@ export function PoseSelector(): React.JSX.Element {
     markShown(pose.id);
   };
 
+  const handleCaptureLongPress = (capture: CapturedPose): void => {
+    Alert.alert(
+      'Delete pose?',
+      `Remove "${capture.name}" from your saved poses?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            useCustomPoses.getState().remove(capture.id);
+            // If the deleted capture was the active target, clear selection.
+            if (usePoseTarget.getState().selected?.id === capture.id) {
+              selectTarget(null);
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <ScrollView
@@ -47,7 +83,7 @@ export function PoseSelector(): React.JSX.Element {
         <ClearCard active={selected === null} onPress={() => selectTarget(null)} />
         {recommendedPoses.length > 0 && (
           <>
-            <View style={styles.forYouLabelWrap}>
+            <View style={styles.sectionLabelWrap}>
               <Text style={styles.forYouLabel}>✨ For You</Text>
             </View>
             {recommendedPoses.map((pose) => (
@@ -59,6 +95,26 @@ export function PoseSelector(): React.JSX.Element {
                 recommended
               />
             ))}
+            <View style={styles.divider} />
+          </>
+        )}
+        {captures.length > 0 && (
+          <>
+            <View style={styles.sectionLabelWrap}>
+              <Text style={styles.myPosesLabel}>📌 My Poses</Text>
+            </View>
+            {captures.map((capture) => {
+              const pose = captureToPoseTarget(capture);
+              return (
+                <CaptureCard
+                  key={capture.id}
+                  pose={pose}
+                  active={selected?.id === pose.id}
+                  onPress={() => handlePress(pose)}
+                  onLongPress={() => handleCaptureLongPress(capture)}
+                />
+              );
+            })}
             <View style={styles.divider} />
           </>
         )}
@@ -93,6 +149,36 @@ function PoseCard({
       style={[styles.card, recommended && styles.cardRecommended, active && styles.cardActive]}
     >
       <Text style={styles.glyph}>{CATEGORY_GLYPH[pose.category]}</Text>
+      <Text style={styles.name} numberOfLines={1}>
+        {pose.name}
+      </Text>
+      <Text style={styles.stars} numberOfLines={1}>
+        {stars}
+      </Text>
+    </Pressable>
+  );
+}
+
+function CaptureCard({
+  pose,
+  active,
+  onPress,
+  onLongPress,
+}: {
+  pose: PoseTarget;
+  active: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+}): React.JSX.Element {
+  const stars = '★'.repeat(pose.difficulty) + '☆'.repeat(Math.max(0, 5 - pose.difficulty));
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
+      style={[styles.card, styles.cardCaptured, active && styles.cardActive]}
+    >
+      <Text style={styles.glyph}>📌</Text>
       <Text style={styles.name} numberOfLines={1}>
         {pose.name}
       </Text>
@@ -154,6 +240,10 @@ const styles = StyleSheet.create({
   cardRecommended: {
     borderColor: 'rgba(250, 204, 21, 0.55)',
   },
+  cardCaptured: {
+    borderColor: 'rgba(255, 107, 53, 0.65)',
+    backgroundColor: 'rgba(255, 107, 53, 0.12)',
+  },
   glyph: {
     color: '#fff',
     fontSize: 22,
@@ -171,12 +261,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
   },
-  forYouLabelWrap: {
+  sectionLabelWrap: {
     paddingHorizontal: 6,
     justifyContent: 'center',
   },
   forYouLabel: {
     color: '#FACC15',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  myPosesLabel: {
+    color: '#FF6B35',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,

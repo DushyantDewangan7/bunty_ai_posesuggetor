@@ -8,6 +8,7 @@ import { usePoseLandmarkerOutput } from '../../camera/usePoseLandmarkerOutput';
 import { matchPose } from '../../recommendation/poseMatch';
 import { usePoseStream } from '../../state/poseStream';
 import { usePoseTarget } from '../../state/poseTarget';
+import { CaptureButton } from '../components/CaptureButton';
 import { MatchFeedback } from '../components/MatchFeedback';
 import { MockPoseControls } from '../components/MockPoseControls';
 import { PoseSelector } from '../components/PoseSelector';
@@ -95,6 +96,7 @@ export function CameraScreen(): React.JSX.Element {
       </Canvas>
       <MatchFeedback />
       <PoseSelector />
+      <CaptureButton />
       <MockPoseControls />
       <DebugOverlay />
     </View>
