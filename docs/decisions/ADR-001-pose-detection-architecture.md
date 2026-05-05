@@ -412,3 +412,17 @@ Files of interest:
 - [src/ui/screens/CameraScreen.tsx](../../src/ui/screens/CameraScreen.tsx) — owns `settingsOpen` and `recapturing` state; early-returns FaceCaptureScreen in recapture mode so the back-camera Camera unmounts cleanly.
 - [src/ui/screens/onboarding/FaceCaptureScreen.tsx](../../src/ui/screens/onboarding/FaceCaptureScreen.tsx) — accepts optional `mode: 'onboarding' | 'recapture'` and `onCancel` props; OnboardingNavigator usage unchanged (defaults to onboarding).
 
+### G20. Face-shape classifier threshold gaps + closest-match fallback (2026-05-05)
+
+The geometric face-shape classifier in [src/ml/faceShape.ts](../../src/ml/faceShape.ts) applies five priority-ordered rules (diamond → heart → oval → round/square) against three ratios derived from MediaPipe Face Mesh landmarks: length-to-width, forehead-to-jaw, cheekbone-to-jaw. The rules' thresholds were tuned in isolation against synthetic fixtures and leave **gaps** — many real faces produce ratios that don't satisfy any rule (e.g. length-to-width = 1.15, just above the round/square ceiling at 1.1 but below the oval floor at 1.3). Those faces previously fell through to `'unknown'`, which the UI surfaces as "Not detected" — confusing because 468 valid landmarks ARE being detected.
+
+To paper over the gaps without changing existing rule semantics, `deriveFaceShape` now ends in a `closestShape` fallback that returns whichever shape's thresholds the metrics violate the *least* (sum of clamped distances from each threshold), with `'oval'` as the tiebreaker (most common shape in the general population). All five existing synthetic test cases still hit their direct rules; one new test exercises the fallback.
+
+`'unknown'` is still returned when landmarks are missing/degenerate (fewer than 468, or zero-width measurements that would NaN the ratios). It is no longer returned when a real face is in frame.
+
+**TODO (Phase 4+):** recalibrate the geometric thresholds against a labeled face dataset to eliminate the fallback's load-bearing role. The fallback is a temporary safety net, not a calibrated classifier — its choices are mathematically defensible but not necessarily anatomically correct.
+
+Files of interest:
+- [src/ml/faceShape.ts](../../src/ml/faceShape.ts) — `deriveFaceShape`, `computeFaceShapeMetrics`, and the `closestShape` fallback.
+- [src/ml/faceShape.test.ts](../../src/ml/faceShape.test.ts) — 6 synthetic cases (5 rule-direct, 1 fallback gap). Run with `npx tsx src/ml/faceShape.test.ts`.
+

@@ -78,6 +78,16 @@ const cases: Case[] = [
     fixture: { faceLength: 1.2, foreheadWidth: 0.7, cheekboneWidth: 1.0, jawWidth: 0.8 },
     expected: 'diamond',
   },
+  // Fallback — metrics fall in a gap between rules (l/w just above the
+  // round/square ceiling at 1.1 but below the oval floor at 1.3). Closest
+  // rule by total threshold violation is 'round' (only 0.05 over the l/w
+  // ceiling). Without the fallback this would return 'unknown' even though
+  // 468 valid landmarks are present.
+  {
+    name: 'fallback (between round and oval)',
+    fixture: { faceLength: 1.15, foreheadWidth: 0.9, cheekboneWidth: 1.0, jawWidth: 0.95 },
+    expected: 'round',
+  },
 ];
 
 export function runFaceShapeTests(): { pass: number; fail: number } {

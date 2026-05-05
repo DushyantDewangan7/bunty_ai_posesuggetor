@@ -125,7 +125,46 @@ export function deriveFaceShape(landmarks: FaceLandmark[]): FaceShape {
     if (cheekboneToJaw <= 1.05 && cheekboneToJaw >= 0.95) return 'square';
   }
 
-  return 'unknown';
+  // Threshold gaps between the rules above leave many real faces
+  // unclassified. As a safety net, return whichever shape's thresholds the
+  // metrics violate the least. Returning 'unknown' here would force the UI
+  // to show "Not detected" even when 468 valid landmarks are present.
+  return closestShape(m);
+}
+
+/**
+ * Fallback used by {@link deriveFaceShape} when the strict geometric rules
+ * leave the metrics in a gap. Picks the shape whose threshold violations sum
+ * to the smallest total. Tiebreaker is 'oval' (most common shape in the
+ * general population).
+ *
+ * Temporary safety net — Phase 4+ will recalibrate thresholds against a
+ * labeled dataset to remove the dependency on this fallback.
+ */
+function closestShape(m: FaceShapeMetrics): FaceShape {
+  const { lengthToWidth: lw, foreheadToJaw: fj, cheekboneToJaw: cj } = m;
+  const gt = (x: number, t: number): number => Math.max(0, t - x);
+  const lt = (x: number, t: number): number => Math.max(0, x - t);
+
+  const scores: { shape: FaceShape; violation: number }[] = [
+    { shape: 'diamond', violation: gt(cj, 1.15) + lt(fj, 1.0) },
+    { shape: 'heart', violation: gt(fj, 1.2) + gt(cj, 1.0) },
+    { shape: 'oval', violation: gt(lw, 1.3) + gt(cj, 1.0) + lt(cj, 1.1) },
+    { shape: 'round', violation: gt(lw, 0.9) + lt(lw, 1.1) + gt(cj, 1.05) },
+    {
+      shape: 'square',
+      violation: gt(lw, 0.9) + lt(lw, 1.1) + lt(cj, 1.05) + gt(cj, 0.95),
+    },
+  ];
+
+  scores.sort((a, b) => {
+    if (a.violation !== b.violation) return a.violation - b.violation;
+    if (a.shape === 'oval') return -1;
+    if (b.shape === 'oval') return 1;
+    return 0;
+  });
+
+  return scores[0]!.shape;
 }
 
 /**
