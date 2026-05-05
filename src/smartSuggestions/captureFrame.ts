@@ -20,12 +20,23 @@
  */
 
 import { ImageFormat, Skia } from '@shopify/react-native-skia';
+import type { SkImage } from '@shopify/react-native-skia';
 import type { CameraPhotoOutput } from 'react-native-vision-camera';
+
+import { rgbaToGrayscale } from './imageToGrayscale.ts';
 
 export const MAX_DIMENSION = 768;
 export const JPEG_QUALITY = 80;
+export const PHASH_SIZE = 32;
 
-export async function captureCurrentFrame(photoOutput: CameraPhotoOutput): Promise<string> {
+export interface CapturedFrame {
+  /** Base64-encoded JPEG, sized so longest side <= MAX_DIMENSION. */
+  base64: string;
+  /** 32x32 grayscale luminance buffer for perceptual hashing. 1024 bytes. */
+  grayscale: Uint8Array;
+}
+
+export async function captureCurrentFrame(photoOutput: CameraPhotoOutput): Promise<CapturedFrame> {
   const photo = await photoOutput.capturePhoto({ flashMode: 'off', enableShutterSound: false }, {});
 
   let encodedBytes: ArrayBuffer;
@@ -63,5 +74,32 @@ export async function captureCurrentFrame(photoOutput: CameraPhotoOutput): Promi
   );
 
   const snapshot = surface.makeImageSnapshot();
-  return snapshot.encodeToBase64(ImageFormat.JPEG, JPEG_QUALITY);
+  const base64 = snapshot.encodeToBase64(ImageFormat.JPEG, JPEG_QUALITY);
+
+  // Second pass: render the same source image to a 32x32 surface and read raw
+  // RGBA pixels for perceptual hashing. Cheaper than a second JPEG decode.
+  const grayscale = renderGrayscale32(sourceImage, sw, sh);
+
+  return { base64, grayscale };
+}
+
+function renderGrayscale32(sourceImage: SkImage, sw: number, sh: number): Uint8Array {
+  const surface = Skia.Surface.MakeOffscreen(PHASH_SIZE, PHASH_SIZE);
+  if (!surface) {
+    throw new Error('captureCurrentFrame: Skia could not allocate 32x32 surface');
+  }
+  const canvas = surface.getCanvas();
+  const paint = Skia.Paint();
+  canvas.drawImageRect(
+    sourceImage,
+    Skia.XYWHRect(0, 0, sw, sh),
+    Skia.XYWHRect(0, 0, PHASH_SIZE, PHASH_SIZE),
+    paint,
+  );
+  const snapshot = surface.makeImageSnapshot();
+  const rgba = snapshot.readPixels();
+  if (!rgba || !(rgba instanceof Uint8Array)) {
+    throw new Error('captureCurrentFrame: Skia readPixels returned no RGBA data');
+  }
+  return rgbaToGrayscale(rgba);
 }

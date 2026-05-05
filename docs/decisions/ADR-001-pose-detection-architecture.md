@@ -496,3 +496,41 @@ Files of interest:
 - Backend proxy + consent flow — public-distribution prerequisites, not for this scope.
 - Recapture latency reduction (the 13–14 s wait is dominated by Gemini server time; investigate prompt shrinkage further or move to streaming).
 
+### G23. Phase 4-C Smart Suggestions caching — pHash + bounded LRU (2026-05-06)
+
+Phase 4-C eliminates redundant Gemini calls when the user taps Smart Picks repeatedly without moving the camera. Average uncached latency is 10–15 s (G22); average cached latency is now ~30–60 ms (pHash compute dominates). Cache is in-memory only — survives screen rotation but not app restart, intentional.
+
+**Perceptual hash (pHash), pure TS.** [`src/smartSuggestions/pHash.ts`](../../src/smartSuggestions/pHash.ts) implements the standard pHash algorithm: 32-point 2D DCT-II on a 32x32 grayscale buffer, then take the top-left 8x8 low-frequency block, threshold each cell against the median of the other 63 cells (DC excluded so brightness shifts don't flip every bit), pack 64 bits MSB-first into 8 bytes → 16-char hex. The 32-point cosine basis is precomputed once at module load (1024 floats). Zero native deps — adding a C++ DCT or pulling in a hash library would have required a prebuild and growing the binary; the JS DCT is comfortably under 50 ms on the Samsung A22 5G. Hamming distance via popcount table over hex byte pairs.
+
+**Cache: bounded LRU + Hamming-distance lookup + lazy TTL.** [`src/smartSuggestions/cache.ts`](../../src/smartSuggestions/cache.ts) holds entries in an insertion-ordered `Map<string, CacheEntry>`. On lookup, scan all live entries (≤ 20 by default), compute Hamming distance to the query hash, return the closest entry within `matchDistance` (default 8) and within `ttlMs` (default 5 min). On hit, the entry is re-inserted to move it to the MRU end so it survives subsequent eviction. On store at capacity, the LRU (first key) is dropped. TTL is enforced lazily at lookup time — no background sweeper. The exported singleton `smartSuggestionsCache` is what the UI uses; tests construct their own with an injectable `now()` to drive TTL deterministically.
+
+**Why the threshold = 8 Hamming distance.** A 64-bit pHash with d ≤ 8 means ≥ 87.5% of low-frequency DCT bits agree. Two captures of the same scene with normal camera-sensor noise / autoexposure jitter / autofocus drift land in this range; a meaningful scene change (different room, different background, different lighting) blows past it. On-device verification this session: (a) two consecutive taps without moving = HIT, (b) physically walking to a different scene = MISS with fresh API call returning different picks. If real-world false misses turn up over time, loosen toward 12; if false hits, tighten toward 4.
+
+**Frame capture exposes both base64 and grayscale.** Rather than decode the JPEG twice, [`captureCurrentFrame`](../../src/smartSuggestions/captureFrame.ts) now returns `{ base64, grayscale }`. The same Skia source image is rendered to two surfaces: the existing 768×768 surface (→ JPEG → base64 for Gemini) and a new 32×32 surface (→ readPixels RGBA → JS luminance via Rec. 601 in [`imageToGrayscale.ts`](../../src/smartSuggestions/imageToGrayscale.ts) → 1024-byte grayscale). Skia's native scale + JS luminance is fast enough that a second JPEG round-trip would be pure waste.
+
+**SmartSuggestionsButton flow.** Capture → pHash → `cache.lookup(hash)` → on hit: `setResult({...cached, fromCache: true})`, return. On miss: existing build/call/parse path, then `cache.store(hash, fresh)` and `setResult({...fresh, fromCache: false})`. The `fromCache` field already existed on `SmartSuggestionResult` from G21 — Phase 4-C just started populating it.
+
+**UI indicator.** [`PoseSelector.tsx`](../../src/ui/components/PoseSelector.tsx) renders a small `(cached)` hint after `🎯 AI Picks` when `smartResult.fromCache === true`. Color is the AI Picks accent at 55% alpha, fontSize 10 vs the label's 12 — visible if you look, invisible if you don't. The intent is dev-style transparency, not a feature highlight; first-time users won't read it as anything.
+
+**Dev tripwire logging.** Both `cache.lookup` and `cache.store` log a one-line summary in `__DEV__` builds (hash, nearest-distance, threshold, HIT/MISS / size). This was added during sub-step E when the user reported "I don't think it's caching that much" — the log surfaces actual on-device Hamming distances so the threshold can be re-tuned with data, not guesses. Same pattern as G22's prompt-size tripwire in `buildUserMessage`.
+
+**Tests.** 10 pHash tests (deterministic, format, throws on bad length, near-identical → small distance, distinct patterns → large distance, hammingDistance edge cases) + 10 cache tests (empty, exact, fuzzy hit, fuzzy miss, TTL expiry, eviction, MRU promotion, closest-match, clear, refresh on re-store). Tests pass injectable `now()` for TTL control and pin `matchDistance: 0` on eviction tests so unrelated hashes don't collide via fuzzy lookup. All 35 smartSuggestions tests green.
+
+**Gemini API key swap mid-session.** During verification the dev key hit a daily limit. Swapping the key in `.env` requires a Metro restart with `--clear` so the new value re-injects into the bundle (`process.env.EXPO_PUBLIC_GEMINI_API_KEY` is baked at bundle time, not read at runtime). After restart + adb reverse + dev-client deep-link, the new key worked. This is environmental, not a code defect — but worth noting because the same trip-up will recur whenever the key rotates.
+
+**On-device verification (4/4 PASS).** First tap on a fresh scene: 5–15 s spinner, fresh API call, no `(cached)` hint. Second tap without moving the camera: < 1 s, `(cached)` hint visible. Third tap after physically moving to a different scene: spinner returns, fresh picks, no `(cached)` hint.
+
+Files of interest:
+- [src/smartSuggestions/pHash.ts](../../src/smartSuggestions/pHash.ts) — DCT + hex hash + Hamming distance.
+- [src/smartSuggestions/cache.ts](../../src/smartSuggestions/cache.ts) — LRU + TTL + fuzzy lookup + singleton export.
+- [src/smartSuggestions/imageToGrayscale.ts](../../src/smartSuggestions/imageToGrayscale.ts) — RGBA → grayscale via Rec. 601 luma.
+- [src/smartSuggestions/captureFrame.ts](../../src/smartSuggestions/captureFrame.ts) — now returns `{ base64, grayscale }`.
+- [src/ui/components/SmartSuggestionsButton.tsx](../../src/ui/components/SmartSuggestionsButton.tsx) — capture → hash → lookup → API → store flow.
+- [src/ui/components/PoseSelector.tsx](../../src/ui/components/PoseSelector.tsx) — `(cached)` label.
+
+**Out of scope, still deferred to 4-D / 4-F:**
+- Per-user per-day rate limiting (Phase 4-D).
+- Persistent cache across app restarts (intentionally not done — matches Phase 3B novelty pattern).
+- Backend proxy + consent flow.
+- Pre-tuning the threshold against a corpus — for now, observe with the dev log and tune empirically if needed.
+

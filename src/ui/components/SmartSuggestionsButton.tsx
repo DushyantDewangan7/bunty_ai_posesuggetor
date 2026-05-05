@@ -3,8 +3,10 @@ import type { CameraPhotoOutput } from 'react-native-vision-camera';
 
 import { RICH_POSE_LIBRARY } from '../../library/poseLibrary';
 import { projectPoseForAgent } from '../../smartSuggestions/buildPrompt';
+import { smartSuggestionsCache } from '../../smartSuggestions/cache';
 import { callGeminiAPI } from '../../smartSuggestions/callGeminiAPI';
 import { captureCurrentFrame } from '../../smartSuggestions/captureFrame';
+import { computePHash } from '../../smartSuggestions/pHash';
 import { parseGeminiResponse } from '../../smartSuggestions/parseResponse';
 import { usePoseStream } from '../../state/poseStream';
 import { useRecommendationSession } from '../../state/recommendationSession';
@@ -41,9 +43,17 @@ export function SmartSuggestionsButton({ photoOutput }: Props): React.JSX.Elemen
     useSmartSuggestions.getState().startRequest();
 
     try {
-      const frameBase64 = await captureCurrentFrame(photoOutput);
+      const captured = await captureCurrentFrame(photoOutput);
+      const hash = computePHash(captured.grayscale);
+
+      const cached = smartSuggestionsCache.lookup(hash);
+      if (cached) {
+        useSmartSuggestions.getState().setResult({ ...cached, fromCache: true });
+        return;
+      }
+
       const request: SmartSuggestionRequest = {
-        frameBase64,
+        frameBase64: captured.base64,
         profile,
         libraryMetadata: RICH_POSE_LIBRARY.map(projectPoseForAgent),
         shownPoseIds,
@@ -51,7 +61,9 @@ export function SmartSuggestionsButton({ photoOutput }: Props): React.JSX.Elemen
       const rawResponse = await callGeminiAPI(request, API_KEY);
       const libraryIds = new Set(RICH_POSE_LIBRARY.map((p) => p.id));
       const parsed = parseGeminiResponse(rawResponse, libraryIds);
-      useSmartSuggestions.getState().setResult(parsed);
+      const fresh = { ...parsed, fromCache: false };
+      smartSuggestionsCache.store(hash, fresh);
+      useSmartSuggestions.getState().setResult(fresh);
     } catch (err) {
       useSmartSuggestions.getState().setError(extractErrorPayload(err));
     }

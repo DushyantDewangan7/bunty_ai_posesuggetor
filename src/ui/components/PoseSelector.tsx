@@ -156,7 +156,12 @@ export function PoseSelector(): React.JSX.Element {
         {!smartLoading && !smartError && aiPicks.length > 0 && (
           <>
             <View style={styles.sectionLabelWrap}>
-              <Text style={styles.aiPicksLabel}>🎯 AI Picks</Text>
+              <Text style={styles.aiPicksLabel}>
+                🎯 AI Picks
+                {smartResult?.fromCache ? (
+                  <Text style={styles.cachedHint}> (cached)</Text>
+                ) : null}
+              </Text>
             </View>
             {aiPicks.map(({ pick, pose }) => (
               <AiPickCard
@@ -434,6 +439,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  cachedHint: {
+    color: 'rgba(196, 181, 253, 0.55)',
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   statusText: {
     color: '#fff',
