@@ -1,9 +1,9 @@
-import { normalizePose } from '../ml/normalize';
+import { normalizePose } from '../ml/normalize.ts';
 import type { PoseLandmark } from '../types/landmarks';
 import type { PoseCategory, PoseTarget } from '../types/pose';
 import type { RichPose, RichPoseCategory } from '../types/poseMetadata';
 
-import generatedPosesJson from './data/poses.generated.json';
+import generatedPosesJson from './data/poses.generated.json' with { type: 'json' };
 
 /**
  * Hand-authored stub pose library for Phase 1 demo. Each entry's landmarks

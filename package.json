@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "nitrogen": "nitrogen && node scripts/patch-nitrogen.cjs",
-    "process-poses": "node scripts/process-poses.mjs"
+    "process-poses": "node scripts/process-poses.mjs",
+    "phase4:harness": "node scripts/smartSuggestions-harness.mjs"
   },
   "dependencies": {
     "@shopify/react-native-skia": "2.2.12",

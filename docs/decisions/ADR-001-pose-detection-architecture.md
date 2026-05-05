@@ -426,3 +426,38 @@ Files of interest:
 - [src/ml/faceShape.ts](../../src/ml/faceShape.ts) — `deriveFaceShape`, `computeFaceShapeMetrics`, and the `closestShape` fallback.
 - [src/ml/faceShape.test.ts](../../src/ml/faceShape.test.ts) — 6 synthetic cases (5 rule-direct, 1 fallback gap). Run with `npx tsx src/ml/faceShape.test.ts`.
 
+### G21. Cloud-augmented scene reasoning — Phase 4-A backend modules (2026-05-05)
+
+Phase 4-A introduces "Smart Suggestions": the user taps a button, the app captures the current camera frame and asks Gemini 2.5 Flash to recommend 3-5 poses from the local library tailored to scene + user profile. Phase 4-A this session = backend modules + offline harness; Phase 4-B = UI integration with a real camera ref.
+
+**Architecture decision: direct Gemini API calls, no backend proxy (v1).** Personal-scope-only rule from the spec — the API key is embedded in the build via `.env` (gitignored, loaded via `expo-constants` or `react-native-dotenv` in 4-B). A backend proxy lands "just before public distribution," not now. This is acceptable because the v1 build is for the developer's personal use only; if the APK leaks the key leaks, but distribution is gated.
+
+**Module layout** (all under [src/smartSuggestions/](../../src/smartSuggestions/)):
+- [captureFrame.ts](../../src/smartSuggestions/captureFrame.ts) — Phase 4-A: signature + documentation only. Phase 4-B will install `expo-camera` (or `react-native-view-shot`) + `expo-image-manipulator`, wire the real camera ref, and resize/JPEG-encode the frame to fit within 768×768 at quality 80.
+- [buildPrompt.ts](../../src/smartSuggestions/buildPrompt.ts) — `buildSystemPrompt()` (static role + JSON schema + constraints) and `buildUserMessage(request)` (per-call profile + library + shown list as JSON, plus the base64 image). Includes `projectPoseForAgent()` which slims `RichPose` down to the 11 fields the model needs (drops `referenceLandmarks`, `bodyTypeHints`, `groupSize`, `recommendedClothing`, `imageAttribution`) to keep token count manageable.
+- [callGeminiAPI.ts](../../src/smartSuggestions/callGeminiAPI.ts) — `fetch` against `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, AbortController timeout (default 10 s, override per call), error mapping (401/403 → `api-error invalid_key`, 429 → `rate-limit`, network → `no-internet`, abort → `timeout`). Errors thrown as `Error` instances with an `errorPayload` discriminated-union property — preserves stack traces while letting consumers pattern-match.
+- [parseResponse.ts](../../src/smartSuggestions/parseResponse.ts) — unwraps the Gemini envelope (`candidates[0].content.parts[0].text`), `JSON.parse`s the inner text, validates required fields, **drops poseIds not in the library** (hallucination filter — logs dropped IDs to console.warn for debugging), trims `reasoning` to 200 chars, re-ranks if the model's ranks aren't contiguous starting from 1.
+- [src/types/smartSuggestions.ts](../../src/types/smartSuggestions.ts) — `SmartSuggestionRequest`, `SmartSuggestionResult`, `SmartSuggestionError` discriminated union.
+- [scripts/smartSuggestions-harness.mjs](../../scripts/smartSuggestions-harness.mjs) — Node CLI that runs the full pipeline against a test image; reads `GEMINI_API_KEY` from `.env` via a manual single-var parser (no dotenv dep). Run via `npm run phase4:harness <image-path>`.
+
+**Empirical latency on first end-to-end run (2026-05-05).** With a 25 KB / 33 K-base64-char image (downscaled from a 1 MB original via sharp to mirror Phase 4-B's intended 768×768), against the 11-pose library, the Gemini 2.5 Flash response came back in **9.4 s** (1.8 KB body, 4 valid picks, scene description). Single data point, but **9.4 s sits a hair under the spec's 10 s production timeout** — variance would push real users into `timeout` errors regularly. The harness uses a 60 s diagnostic timeout to surface this without false-failing; production code keeps the spec's 10 s default. **Action item for Phase 4-B/C:** gather more samples and consider bumping production timeout to 15-20 s, or add retry-on-timeout, or shrink the prompt (the library JSON is the dominant token contributor).
+
+**Hallucination filter is load-bearing.** The prompt explicitly forbids invented IDs, but Gemini still occasionally emits IDs not present in the library — the parser silently drops these and re-ranks the survivors. Log lines like `[smartSuggestions] dropped N hallucinated pose id(s): ...` appear in dev logs when this fires. If the drop rate becomes a problem in 4-C testing, options are: (a) fewer-shot examples in the system prompt, (b) constrained decoding via Gemini's tool-use mode, (c) post-hoc retry with stricter wording. We do not address this in 4-A — the filter is a backstop, not a fix.
+
+**Two ESM-resolution gotchas surfaced while wiring the harness.**
+
+1. **Bare-extension imports break Node ESM strip-types.** Existing `src/library/poseLibrary.ts` imported `from '../ml/normalize'` (no extension) — fine for Metro and `tsc --noEmit` thanks to `allowImportingTsExtensions`, but Node's ESM resolver in `--experimental-strip-types` mode (default since Node 23.6) requires the explicit `.ts`. Fix: change the value import to `from '../ml/normalize.ts'`. Type-only imports continue to work bare — the existing convention. Pattern matches the existing [scripts/process-poses.mjs](../../scripts/process-poses.mjs).
+
+2. **JSON imports in Node ESM need the `with { type: 'json' }` import attribute.** `poseLibrary.ts`'s `import generatedPosesJson from './data/poses.generated.json'` worked under Metro/tsc but failed under Node ESM with `ERR_IMPORT_ATTRIBUTE_MISSING`. Fix: `import generatedPosesJson from './data/poses.generated.json' with { type: 'json' }` — standard ES2025 syntax, supported by TypeScript 5.3+ and Metro's babel transform.
+
+**Tests** (8 + 9 = 17 cases):
+- [src/smartSuggestions/__tests__/buildPrompt.test.ts](../../src/smartSuggestions/__tests__/buildPrompt.test.ts) — system prompt structure, projection drops the right fields, user message embeds gender + shownPoseIds, payload is JSON-parseable. `node --experimental-strip-types --test` ✓.
+- [src/smartSuggestions/__tests__/parseResponse.test.ts](../../src/smartSuggestions/__tests__/parseResponse.test.ts) — valid response, hallucinated-id drop, all-hallucinated → `no-valid-picks`, malformed JSON → `parse-error`, missing recommendations → `parse-error`, reasoning trimmed at 200 chars, non-contiguous ranks re-ranked, empty array → `no-valid-picks`, malformed envelope → `parse-error`. ✓.
+
+**Out of scope tonight (deferred to subsequent 4-x):**
+- Phase 4-B: SmartSuggestionsButton UI, real camera-ref wiring, `expo-camera` + `expo-image-manipulator` install, env-loading via `expo-constants`/`react-native-dotenv` (decision deferred to 4-B alongside the actual usage).
+- Phase 4-C: result caching (avoid re-calling Gemini for identical scene + profile).
+- Phase 4-D: rate limiting (per-user per-day budget).
+- Phase 4-F: device APK build + install.
+- Consent flow — explicitly deferred per spec's personal-scope rule.
+
