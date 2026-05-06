@@ -634,3 +634,5 @@ Phase 4 added an optional cloud path for pose recommendations that runs in paral
 - Library growth past 11 poses — quality of cloud reasoning scales with library variety; once the library has 30+ poses, revisit prompt size and the slim projection's field set.
 - "(N left today)" button badge — optional polish from G24, deferrable.
 
+G26: Phase 4 personal-scope closed. Smart Picks field-tested on device, working as designed. Library size (11 poses) is the next bottleneck for recommendation differentiation, not a Phase 4 defect. Distribution constraints from G25 remain binding.
+
