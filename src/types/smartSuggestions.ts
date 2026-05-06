@@ -53,7 +53,7 @@ export interface SmartSuggestionResult {
 
 export type SmartSuggestionError =
   | { type: 'no-internet' }
-  | { type: 'rate-limit' }
+  | { type: 'rate-limit'; resetAt?: string }
   | { type: 'api-error'; status: number; message: string }
   | { type: 'timeout' }
   | { type: 'parse-error'; message: string }

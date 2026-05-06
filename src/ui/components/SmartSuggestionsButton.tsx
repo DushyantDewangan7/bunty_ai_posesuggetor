@@ -8,6 +8,7 @@ import { callGeminiAPI } from '../../smartSuggestions/callGeminiAPI';
 import { captureCurrentFrame } from '../../smartSuggestions/captureFrame';
 import { computePHash } from '../../smartSuggestions/pHash';
 import { parseGeminiResponse } from '../../smartSuggestions/parseResponse';
+import { smartSuggestionsRateLimiter } from '../../smartSuggestions/rateLimiter';
 import { usePoseStream } from '../../state/poseStream';
 import { useRecommendationSession } from '../../state/recommendationSession';
 import { useSmartSuggestions } from '../../state/smartSuggestionsState';
@@ -40,6 +41,19 @@ export function SmartSuggestionsButton({ photoOutput }: Props): React.JSX.Elemen
 
     const shownPoseIds = Array.from(useRecommendationSession.getState().shownPoseIds);
 
+    // Pre-check the daily rate limit before any work. We do not consume() yet
+    // — cache hits should not count against the cap. consume() runs after the
+    // cache miss, just before the network call.
+    const limiter = smartSuggestionsRateLimiter();
+    const limitStatus = limiter.status();
+    if (!limitStatus.allowed) {
+      useSmartSuggestions.getState().setError({
+        type: 'rate-limit',
+        resetAt: limitStatus.resetAt.toISOString(),
+      });
+      return;
+    }
+
     useSmartSuggestions.getState().startRequest();
 
     try {
@@ -49,6 +63,18 @@ export function SmartSuggestionsButton({ photoOutput }: Props): React.JSX.Elemen
       const cached = smartSuggestionsCache.lookup(hash);
       if (cached) {
         useSmartSuggestions.getState().setResult({ ...cached, fromCache: true });
+        return;
+      }
+
+      // Cache miss: now consume one quota slot before the API call. A race
+      // (two near-simultaneous taps after a cache miss) could in theory bump
+      // total slightly past cap, but consume() is synchronous + MMKV-backed
+      // and the loading flag already prevents reentrant taps.
+      if (!limiter.consume()) {
+        useSmartSuggestions.getState().setError({
+          type: 'rate-limit',
+          resetAt: limiter.status().resetAt.toISOString(),
+        });
         return;
       }
 

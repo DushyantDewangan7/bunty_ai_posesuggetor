@@ -534,3 +534,42 @@ Files of interest:
 - Backend proxy + consent flow.
 - Pre-tuning the threshold against a corpus — for now, observe with the dev log and tune empirically if needed.
 
+### G24. Phase 4-D Smart Suggestions rate limiting — per-device daily cap (2026-05-06)
+
+Phase 4-D adds a hard ceiling of 50 Gemini calls per device per day, persisted to MMKV, resetting at local midnight. Purpose: protect the personal-scope dev-key quota from accidental burn during active testing, and establish the structural place where a backend rate limit will plug in once the proxy ships. This is NOT a substitute for server-side limits — anyone willing to clear app data resets their counter.
+
+**Storage shape.** Dedicated MMKV id `smart-suggestions-usage` (separate from `user-profile` and `custom-poses` so the lifecycle is independent — clearing usage shouldn't risk profile state). Two keys:
+- `usage.count.v1` (number) — today's running count.
+- `usage.resetDate.v1` (string) — last day a counter was active, formatted `YYYY-MM-DD` in **device local time** (not UTC). Local-time reset matches the user's mental model of "a new day"; UTC would reset mid-evening for non-Z timezones.
+
+**Lazy reset, no timer.** [`SmartSuggestionsRateLimiter.consume()`](../../src/smartSuggestions/rateLimiter.ts) and `.status()` both compare today's local date string against the stored one. If different, the counter is treated as 0 for the new day. No background timer, no scheduled job, no `setInterval`. The user opens the app at 09:00 the next day → first call observes the date mismatch → fresh quota.
+
+**consume() runs after cache miss, NOT on every tap.** In [`SmartSuggestionsButton.handlePress`](../../src/ui/components/SmartSuggestionsButton.tsx) the order is now: `status()` pre-check → capture → pHash → cache lookup → on hit, return without consuming → on miss, `consume()` → `callGeminiAPI`. Cache hits are free. This matches the spec's intent: the rate limit is on real outbound calls, not user button presses.
+
+**Race window is acceptable.** Two near-simultaneous taps after a cache miss could theoretically bump the count slightly past cap, but `consume()` is synchronous + MMKV-backed and the existing `loading` flag in [`smartSuggestionsState.ts`](../../src/state/smartSuggestionsState.ts) gates the button while a request is in flight. Worst case: cap is hit at 51 instead of 50 once. Worth nothing — adding a true atomic compare-and-set via Nitro would be effort for a 2% slop.
+
+**Injectable storage + clock.** The class accepts `{ storage, now }` in config so tests don't depend on MMKV native code. Production uses a thin `RateLimiterStorage` adapter wrapping `react-native-mmkv` via lazy `require()` inside `defaultStorage()` — top-level `import` of `react-native-mmkv` would crash Node at module-load time because the package's index.js fans out to `.android.js` / `.ios.js` resolvers that Node can't pick. Lazy require keeps unit tests in pure Node without resorting to a setup file or jest mocks. Same pattern is reasonable for any future MMKV-backed module that needs unit-testability.
+
+**Singleton is a function, not a value.** Exported as `smartSuggestionsRateLimiter()` (a memoised getter), not `smartSuggestionsRateLimiter` (a constructed object). Reason: constructing eagerly at module load runs `defaultStorage()` → `require('react-native-mmkv')` → native binding lookup, even when the module is just being imported by the test runner. Calling it as a function defers that to runtime. Callers in production code change from `smartSuggestionsCache.lookup(...)`-style direct access to `smartSuggestionsRateLimiter().status()` — minor ergonomic cost, big testability win.
+
+**Error type extension.** `SmartSuggestionError` rate-limit variant gains an optional `resetAt?: string` (ISO timestamp). Existing callers (Gemini's own 429 → `{ type: 'rate-limit' }` from `callGeminiAPI`) don't carry this field; only the local-quota check sets it. [`PoseSelector.errorMessageFor`](../../src/ui/components/PoseSelector.tsx) renders the local case as `Daily limit reached — resets at 12:00 AM` (locale-formatted) and falls back to the existing "Rate limit reached, try again in a minute" for the remote case. Tap-to-clear on the error card works the same as for any other error.
+
+**Tests (10 new, 45 total in smartSuggestions).** Tests cover: fresh state, single consume, full-day fill, refusal at cap, midnight crossover with running counter, cap-hit + crossover + new-day allow, custom dailyCap, resetAt = upcoming local midnight, manual reset, and two limiter instances sharing storage. Tests use a Map-backed `RateLimiterStorage` fake and inject `now: () => Date` for clock control. Zero real-time `setTimeout`.
+
+**Optional polish skipped.** Spec called for an optional "(8 left today)" badge on the Smart Picks button when `remaining < 10`. Not implemented — the spec marks it skip-if-running-long, and the existing error UI surfaces the limit clearly enough on cap-hit. Easy to add later: read `smartSuggestionsRateLimiter().status().remaining` in the button's render path.
+
+**On-device verification.** Two normal Smart Picks calls (one fresh API call, one move-and-tap fresh call) confirmed the rate limiter integration didn't break the existing flow. Cap-hit behavior is verified by the unit tests, not on device — testing 50 consumes on a real device would burn quota and a "lower the cap temporarily for testing" pattern is exactly the kind of hardcode that ships to production by accident.
+
+Files of interest:
+- [src/smartSuggestions/rateLimiter.ts](../../src/smartSuggestions/rateLimiter.ts) — class, injectable storage/clock, lazy MMKV require, function-style singleton.
+- [src/smartSuggestions/__tests__/rateLimiter.test.ts](../../src/smartSuggestions/__tests__/rateLimiter.test.ts) — 10 unit tests with Map-backed fake storage.
+- [src/ui/components/SmartSuggestionsButton.tsx](../../src/ui/components/SmartSuggestionsButton.tsx) — pre-check + post-cache-miss `consume()`.
+- [src/types/smartSuggestions.ts](../../src/types/smartSuggestions.ts) — optional `resetAt` on the rate-limit error variant.
+- [src/ui/components/PoseSelector.tsx](../../src/ui/components/PoseSelector.tsx) — formatted reset-time message.
+
+**Out of scope, still deferred to 4-F:**
+- Server-side rate limiting (waits on backend proxy).
+- Subscription tiers (Phase 5+).
+- Per-API-error rate-limit branching — Gemini's 429s already flow through the existing `SmartSuggestionError` path.
+- "(N left today)" button badge — optional polish, deferrable.
+

@@ -287,8 +287,17 @@ function errorMessageFor(error: SmartSuggestionError): string {
   switch (error.type) {
     case 'no-internet':
       return 'Connect to internet for Smart Picks';
-    case 'rate-limit':
+    case 'rate-limit': {
+      if (error.resetAt) {
+        const reset = new Date(error.resetAt);
+        const formatted = reset.toLocaleTimeString(undefined, {
+          hour: 'numeric',
+          minute: '2-digit',
+        });
+        return `Daily limit reached — resets at ${formatted}`;
+      }
       return 'Rate limit reached, try again in a minute';
+    }
     case 'timeout':
       return 'Took too long, tap Smart Picks to retry';
     case 'api-error':
