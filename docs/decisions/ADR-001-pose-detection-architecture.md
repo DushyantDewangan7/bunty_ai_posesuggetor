@@ -573,3 +573,64 @@ Files of interest:
 - Per-API-error rate-limit branching — Gemini's 429s already flow through the existing `SmartSuggestionError` path.
 - "(N left today)" button badge — optional polish, deferrable.
 
+### G25. Phase 4 (cloud-augmented scene reasoning) consolidated architectural review (2026-05-06)
+
+Phase 4 added an optional cloud path for pose recommendations that runs in parallel with the on-device personalization engine from Phase 3B. The user explicitly opts in by tapping a "Smart Picks" button; on-device recommendations remain the default for users who never opt in. This entry consolidates G21–G24 into one architectural picture, plus the integration-test layer and orchestration extraction added in 4-E.
+
+**Module structure ([src/smartSuggestions/](../../src/smartSuggestions/)):**
+- types: [src/types/smartSuggestions.ts](../../src/types/smartSuggestions.ts) — `SmartSuggestionRequest` / `Result` / `Pick` / `Error` / `PoseMetadataForAgent`.
+- [captureFrame.ts](../../src/smartSuggestions/captureFrame.ts) — vision-camera `takePhoto` + Skia decode → 768×768 base64 JPEG **and** 32×32 grayscale Uint8Array, single decode, two surfaces.
+- [buildPrompt.ts](../../src/smartSuggestions/buildPrompt.ts) — system prompt + library projection (`projectPoseForAgent` drops `description`, `referenceLandmarks`, `bodyTypeHints`, `groupSize`, `recommendedClothing`, `imageAttribution` for token efficiency).
+- [callGeminiAPI.ts](../../src/smartSuggestions/callGeminiAPI.ts) — HTTPS to Gemini 2.5 Flash, 20 s timeout, error mapping for 401/403 → `api-error invalid_key`, 429 → `rate-limit`, network → `no-internet`, abort → `timeout`.
+- [parseResponse.ts](../../src/smartSuggestions/parseResponse.ts) — envelope unwrap → JSON parse → hallucinated-ID filter against `libraryIds` → reasoning trim @200 chars → contiguous re-rank.
+- [pHash.ts](../../src/smartSuggestions/pHash.ts) — 32×32 grayscale → 2D DCT-II → 8×8 low-frequency window (DC excluded from threshold) → median threshold → 64-bit hex hash. Pure TS, no native deps.
+- [cache.ts](../../src/smartSuggestions/cache.ts) — Map-backed bounded LRU (20 entries) with Hamming-distance lookup (threshold 8) and lazy TTL check (5 min). In-memory only by design — matches Phase 3B novelty pattern.
+- [rateLimiter.ts](../../src/smartSuggestions/rateLimiter.ts) — MMKV-backed daily counter at id `smart-suggestions-usage`, local-midnight reset, lazy `require` of `react-native-mmkv` to allow Node tests, function-style singleton (`smartSuggestionsRateLimiter()`) so module-load doesn't touch native bindings.
+- [imageToGrayscale.ts](../../src/smartSuggestions/imageToGrayscale.ts) — RGBA → Rec. 601 luma fallback path.
+- [orchestrate.ts](../../src/smartSuggestions/orchestrate.ts) — extracted in 4-E; pure function `runSmartSuggestionsFlow(input, deps)` that runs cache lookup → rate-limit gate → API call → parse → cache store. Production and integration tests share this exact code path.
+- [index.ts](../../src/smartSuggestions/index.ts) — barrel re-exporting the public surface so consumers outside the folder import from one path. Added in 4-E.
+
+**State: [src/state/smartSuggestionsState.ts](../../src/state/smartSuggestionsState.ts)** — Zustand store, in-memory, not persisted (matches the Phase 3B novelty-tracking pattern: cache state is session-scoped, daily quota is the only thing that survives restart).
+
+**UI:**
+- [src/ui/components/SmartSuggestionsButton.tsx](../../src/ui/components/SmartSuggestionsButton.tsx) — bottom-left, 72 px, purple `#7C3AED` / `#9333EA` gradient, 🎯 icon. Disabled when no `photoOutput`, no profile, or a request is in flight. After 4-E refactor, the body delegates orchestration to `runSmartSuggestionsFlow`; the button only handles state-store reads, frame capture, and UI dispatch on success/error.
+- [src/ui/components/PoseSelector.tsx](../../src/ui/components/PoseSelector.tsx) — adds an "AI Picks" section above the user's regular picks: purple-bordered cards, long-press shows the model's reasoning in an alert, "(cached)" indicator on `fromCache=true`, locale-formatted reset-time on rate-limit error.
+
+**Orchestration order (canonical, in [orchestrate.ts](../../src/smartSuggestions/orchestrate.ts)):**
+1. `captureCurrentFrame(photoOutput)` (in the button — needs the live photo output, kept in UI layer).
+2. `computePHash(grayscale)` (or test override).
+3. `cache.lookup(hash)` — on hit, return `{...cached, fromCache: true}`. No quota touched.
+4. `rateLimiter.status()` — on `allowed: false`, throw `rate-limit` with `resetAt`.
+5. `rateLimiter.consume()` — on `false` (lost a race), throw `rate-limit` with the freshly-read `resetAt`.
+6. `callGemini(request)` — raw response body string.
+7. `parseResponse(rawText, libraryIds)` — validated `SmartSuggestionResult`.
+8. `cache.store(hash, fresh)` — record for subsequent identical-scene taps.
+9. Return `{...parsed, fromCache: false}`.
+
+**Quota model.** Cache hits do not count against the daily 50-call cap. Rationale: if the user taps repeatedly without moving the camera, they've already paid the API cost once; subsequent taps in the same scene return the same result instantly. A scene change (Hamming distance > 8) is a real new request and consumes a slot. This is enforced structurally — `consume()` is only reachable on the cache-miss path.
+
+**Why orchestrate was extracted in 4-E.** Before 4-E the cache→rate-limit→API→parse→store sequence lived in [`SmartSuggestionsButton.handlePress`](../../src/ui/components/SmartSuggestionsButton.tsx). Per-module unit tests covered each piece in isolation, but no test exercised the *interaction* between cache and rate limiter, or between parser and cache (specifically: does the cache store the *filtered* result after hallucination removal?). Pulling the logic into a pure function with injectable deps means the integration tests cover the same code that production runs — not a parallel re-implementation that could drift. The pre-cache-miss `status()` pre-check the button used to do is gone; the button now relies on orchestrate's own `status()` gate after the cache lookup, which matches the spec ordering and saves one redundant storage read on cache hits.
+
+**Test coverage (8 suites, 53 tests).**
+- pHash: 10
+- cache: 10
+- rate limiter: 10
+- parseResponse: 9
+- buildPrompt: 6
+- integration: 8 (full happy path round-trip; cache hit avoids API; cache miss + allowed quota → API + counter increments; cache hit does not consume quota; cap blocks API + returns `rate-limit`; hallucinated IDs filtered before cache store; `fromCache` flag correct on both paths; eviction occurs while limiter still tracks every call).
+
+**Distribution constraints (still binding, must clear before any non-personal release).**
+1. API key embedded in build via `.env` / `expo-constants` — works for personal scope only.
+2. No backend proxy yet — required before any non-personal distribution per security review.
+3. No DPDP consent flow — required before any non-personal distribution per legal review.
+4. Daily 50-call cap is enforced client-side; would also need server-side enforcement before public release.
+
+**Open follow-ups.**
+- Phase 4-F: extended on-device verification across varied real-world scenes.
+- v2 backend proxy migration (Cloudflare Workers or Vercel Functions).
+- DPDP consent flow + privacy-policy page.
+- Subscription tiers (Phase 5+).
+- Latency reduction beyond prompt slimming (response streaming, smaller library projections).
+- Library growth past 11 poses — quality of cloud reasoning scales with library variety; once the library has 30+ poses, revisit prompt size and the slim projection's field set.
+- "(N left today)" button badge — optional polish from G24, deferrable.
+
