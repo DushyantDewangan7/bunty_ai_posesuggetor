@@ -5,9 +5,7 @@
  */
 export function rgbaToGrayscale(rgba: Uint8Array): Uint8Array {
   if (rgba.length % 4 !== 0) {
-    throw new Error(
-      `rgbaToGrayscale: input length must be a multiple of 4, got ${rgba.length}`,
-    );
+    throw new Error(`rgbaToGrayscale: input length must be a multiple of 4, got ${rgba.length}`);
   }
   const pixels = rgba.length >> 2;
   const out = new Uint8Array(pixels);

@@ -1,10 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
-import {
-  type RateLimiterStorage,
-  SmartSuggestionsRateLimiter,
-} from '../rateLimiter.ts';
+import { type RateLimiterStorage, SmartSuggestionsRateLimiter } from '../rateLimiter.ts';
 
 function makeFakeStorage(): RateLimiterStorage {
   const map = new Map<string, string | number>();

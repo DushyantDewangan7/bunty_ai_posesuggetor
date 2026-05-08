@@ -158,9 +158,7 @@ export function PoseSelector(): React.JSX.Element {
             <View style={styles.sectionLabelWrap}>
               <Text style={styles.aiPicksLabel}>
                 🎯 AI Picks
-                {smartResult?.fromCache ? (
-                  <Text style={styles.cachedHint}> (cached)</Text>
-                ) : null}
+                {smartResult?.fromCache ? <Text style={styles.cachedHint}> (cached)</Text> : null}
               </Text>
             </View>
             {aiPicks.map(({ pick, pose }) => (

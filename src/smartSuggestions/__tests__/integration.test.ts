@@ -199,10 +199,7 @@ describe('smartSuggestions integration', () => {
     };
     cache.store(hash, seeded);
 
-    const result = await runSmartSuggestionsFlow(
-      makeInput(),
-      makeDeps(cache, limiter, api, hash),
-    );
+    const result = await runSmartSuggestionsFlow(makeInput(), makeDeps(cache, limiter, api, hash));
     assert.equal(api.callCount(), 0);
     assert.equal(result.fromCache, true);
     assert.equal(result.recommendations[0]!.reasoning, 'seeded');
@@ -237,10 +234,7 @@ describe('smartSuggestions integration', () => {
       timestamp: '2026-05-06T09:00:00.000Z',
     });
 
-    const result = await runSmartSuggestionsFlow(
-      makeInput(),
-      makeDeps(cache, limiter, api, hash),
-    );
+    const result = await runSmartSuggestionsFlow(makeInput(), makeDeps(cache, limiter, api, hash));
 
     assert.equal(result.fromCache, true);
     assert.equal(limiter.status().currentCount, 0);
@@ -287,10 +281,7 @@ describe('smartSuggestions integration', () => {
     const api = makeCountingApi(mixedResponse);
     const hash = 'abcdef0123456789';
 
-    const result = await runSmartSuggestionsFlow(
-      makeInput(),
-      makeDeps(cache, limiter, api, hash),
-    );
+    const result = await runSmartSuggestionsFlow(makeInput(), makeDeps(cache, limiter, api, hash));
 
     assert.equal(result.recommendations.length, 2);
     assert.deepEqual(

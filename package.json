@@ -10,6 +10,7 @@
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/**/__tests__/*.test.ts\"",
     "nitrogen": "nitrogen && node scripts/patch-nitrogen.cjs",
     "process-poses": "node scripts/process-poses.mjs",
     "phase4:harness": "node scripts/smartSuggestions-harness.mjs"

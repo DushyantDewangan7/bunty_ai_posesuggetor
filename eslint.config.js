@@ -5,6 +5,22 @@ module.exports = [
   ...expoConfig,
   prettierRecommended,
   {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        exports: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        console: 'readonly',
+      },
+    },
+  },
+  {
     ignores: ['dist/*', 'node_modules/*', '.expo/*', 'android/*', 'ios/*'],
   },
 ];

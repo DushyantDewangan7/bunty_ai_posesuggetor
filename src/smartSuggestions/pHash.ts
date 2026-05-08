@@ -82,9 +82,7 @@ function median(values: number[]): number {
 
 export function computePHash(grayscale32x32: Uint8Array): string {
   if (grayscale32x32.length !== N * N) {
-    throw new Error(
-      `computePHash: expected ${N * N} bytes, got ${grayscale32x32.length}`,
-    );
+    throw new Error(`computePHash: expected ${N * N} bytes, got ${grayscale32x32.length}`);
   }
   const dct = dct2d(grayscale32x32);
 
