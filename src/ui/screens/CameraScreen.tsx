@@ -130,8 +130,10 @@ export function CameraScreen(): React.JSX.Element {
         outputs={[poseOutput, photoOutput]}
       />
       <Canvas style={StyleSheet.absoluteFill}>
-        <PoseTargetOverlay mirrored={false} />
+        {/* G27: live silhouette renders first (bottom z); ghost target overlays
+            on top so the user aligns their green body inside the white ghost. */}
         <PoseSkeleton mirrored={false} />
+        <PoseTargetOverlay mirrored={false} />
       </Canvas>
       <MatchFeedback />
       <PoseSelector />

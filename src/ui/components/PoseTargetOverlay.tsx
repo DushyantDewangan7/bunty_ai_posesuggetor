@@ -1,11 +1,12 @@
-import { Circle, Group, Line, vec } from '@shopify/react-native-skia';
+import { Group, Path } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 
 import { usePoseStream } from '../../state/poseStream';
 import { usePoseTarget } from '../../state/poseTarget';
 import type { PoseLandmark } from '../../types/landmarks';
-import { POSE_CONNECTIONS, imageToScreen } from '../overlays/skeletonGeometry';
+import { computeBodyOutlinePaths } from '../overlays/bodyOutline';
+import { imageToScreen } from '../overlays/skeletonGeometry';
 
 interface PoseTargetOverlayProps {
   mirrored?: boolean;
@@ -21,15 +22,20 @@ const RIGHT_SHOULDER = 12;
 const LEFT_HIP = 23;
 const RIGHT_HIP = 24;
 
-const GHOST_LINE_COLOR = 'rgba(255, 255, 255, 0.55)';
-const GHOST_POINT_COLOR = 'rgba(255, 255, 255, 0.85)';
+const GHOST_FILL_COLOR = '#FFFFFF';
+const GHOST_FILL_OPACITY = 0.25;
+const GHOST_EDGE_OPACITY = 0.7;
+const GHOST_EDGE_STROKE = 2.5;
 
 /**
- * Renders the currently-selected target pose as a translucent ghost skeleton
+ * Renders the currently-selected target pose as a translucent body silhouette
  * inside the camera Skia canvas. Reference landmarks are stored in canonical
  * pose space (hip mid at origin, shoulder-to-hip distance = 1.0); we project
  * them back into image space using the live user's shoulder-to-hip distance
  * as scale so the ghost appears at the user's body size.
+ *
+ * Per ADR-001 G27 (2026-05-08): renders as a body-outline silhouette rather
+ * than skeleton lines, sharing geometry with the live tracking renderer.
  */
 export function PoseTargetOverlay({
   mirrored = false,
@@ -47,29 +53,30 @@ export function PoseTargetOverlay({
     return projectCanonicalToImage(target.referenceLandmarks, anchorX, anchorY, scale);
   }, [target, latestFrame, anchorX, anchorY, fallbackScale]);
 
-  if (!projected) return null;
+  const outline = useMemo(() => {
+    if (!projected) return null;
+    const screen = imageToScreen(projected, width, height, mirrored);
+    return computeBodyOutlinePaths(screen);
+  }, [projected, width, height, mirrored]);
 
-  const screen = imageToScreen(projected, width, height, mirrored);
+  // If the reference data is incoherent, omit the ghost rather than drawing a
+  // wrong "you should be here" target. Library entries pass validation upstream
+  // so this is defensive; the user should not be misled by a bad reference.
+  if (!outline?.valid) return null;
 
   return (
     <Group>
-      {POSE_CONNECTIONS.map(([a, b], i) => {
-        const pa = screen[a];
-        const pb = screen[b];
-        if (!pa || !pb) return null;
-        return (
-          <Line
-            key={`tgt-line-${i}`}
-            p1={vec(pa.x, pa.y)}
-            p2={vec(pb.x, pb.y)}
-            color={GHOST_LINE_COLOR}
+      {outline.paths.map((p, i) => (
+        <Group key={`tgt-outline-${i}`}>
+          <Path path={p} color={GHOST_FILL_COLOR} style="fill" opacity={GHOST_FILL_OPACITY} />
+          <Path
+            path={p}
+            color={GHOST_FILL_COLOR}
             style="stroke"
-            strokeWidth={4}
+            strokeWidth={GHOST_EDGE_STROKE}
+            opacity={GHOST_EDGE_OPACITY}
           />
-        );
-      })}
-      {screen.map((p, i) => (
-        <Circle key={`tgt-pt-${i}`} cx={p.x} cy={p.y} r={5} color={GHOST_POINT_COLOR} />
+        </Group>
       ))}
     </Group>
   );

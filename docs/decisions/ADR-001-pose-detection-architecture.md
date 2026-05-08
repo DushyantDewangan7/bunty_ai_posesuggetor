@@ -636,3 +636,31 @@ Phase 4 added an optional cloud path for pose recommendations that runs in paral
 
 G26: Phase 4 personal-scope closed. Smart Picks field-tested on device, working as designed. Library size (11 poses) is the next bottleneck for recommendation differentiation, not a Phase 4 defect. Distribution constraints from G25 remain binding.
 
+### G27. Body outline rendering replaces skeleton lines for live tracking + ghost target (2026-05-08)
+
+Pose visualization in the camera screen previously rendered the 33 MediaPipe landmarks as a stick-figure skeleton (`POSE_CONNECTIONS` lines + per-joint dots) in two places: `PoseSkeleton` for live tracking and `PoseTargetOverlay` for the selected target ghost. Field-testing made it clear the skeleton form factor reads as a debug overlay rather than a body, and aligning a stick-figure inside another stick-figure ghost is harder than aligning a body inside a body.
+
+The change here is purely a rendering swap. No new ML, no segmentation mask, no new dependency, no change to the 33-landmark data contract. Every downstream system that consumes landmarks — match scoring (G16), library entries (G18), recommendation engine (G17), Smart Suggestions (G21–G25) — works without modification.
+
+**Implementation** (`src/ui/overlays/bodyOutlineGeometry.ts` + `bodyOutline.ts`).
+
+The silhouette is built from the landmarks geometrically:
+- **Torso**: closed quadrilateral through shoulders (11, 12) and hips (24, 23).
+- **Limbs**: tapered tube polygon through three points (root → mid → tip) with thicknesses scaled to the user's shoulder width — arms taper 0.18 → 0.13 → 0.10 of shoulder width; legs taper 0.22 → 0.16 → 0.12. At the middle joint, the perpendicular is the average of the two segment perpendiculars so the bend stays continuous.
+- **Head**: ellipse anchored above the nose. Width derived from ear-to-ear distance when both ears are visible (with a relaxed visibility threshold since ears are commonly occluded), otherwise a shoulder-width fallback.
+- **Hands / feet**: small filled circles at wrists and ankles.
+
+Skia handles overlapping fills cleanly when they share the same color, so the body parts merge visually at joints without a path-boolean union step. The pure geometry layer (`bodyOutlineGeometry.ts`) returns plain `Vec2`/ellipse/circle descriptors and is unit-tested directly via `node --test`; the Skia adapter (`bodyOutline.ts`) maps those descriptors to `SkPath`. The split keeps tests off Skia's native module.
+
+**Visibility tolerance.** The geometry function returns `valid: false` if any of the four torso anchors (shoulders + hips) is below 0.5 visibility — the silhouette wouldn't be coherent. If only a limb's middle joint is occluded, the limb is rendered as a single tapered tube straight from root to tip. If both mid and tip are missing, the limb is omitted. The head is omitted when the nose is unreliable.
+
+**Live vs ghost rendering** (`PoseSkeleton.tsx`, `PoseTargetOverlay.tsx`).
+- Live: filled `#22C55E` at α 0.4, edge stroked at α 0.9 width 2. Falls back to the original skeleton-line renderer when `valid: false` so the user always sees their pose tracked.
+- Ghost: filled `#FFFFFF` at α 0.25, edge stroked at α 0.7 width 2.5. When `valid: false` the ghost is omitted entirely rather than falling back — a wrong "you should be here" reference is worse than no reference (library entries pass validation upstream so this path is defensive).
+
+The alpha gap (0.4 vs 0.25) plus the stroke-width difference is enough to keep the two silhouettes visually distinct without animation or a size offset.
+
+**Z-order swap in `CameraScreen.tsx`.** Previously the ghost was drawn first (bottom) and the live skeleton on top. With silhouettes that ordering hides the ghost behind the live body. Reversed so the live silhouette draws first and the ghost overlays on top — the user sees their green body inside the white ghost stencil and aligns into it.
+
+**What was deferred.** Real per-pixel body segmentation (MediaPipe Selfie Segmentation, Pose Landmarker Heavy mask) was considered and rejected for now: it's a 1–2 week ML refactor, adds a model download + native dependency, and the geometric approximation is sufficient for the alignment UX. Anatomical refinements (clothing, hair, gendered proportions) and outline-to-outline animation transitions are also out of scope. If user feedback shows the geometric silhouette is unrecognizable in real-world scenes, revisit with Selfie Segmentation as Path B.
+
