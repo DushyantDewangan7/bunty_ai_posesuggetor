@@ -9,10 +9,11 @@
 
 package com.margelo.nitro.aiposesuggestor.poseplugin
 
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.util.Log
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
-import com.google.mediapipe.framework.image.MediaImageBuilder
+import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.margelo.nitro.camera.CameraOrientation
 import com.margelo.nitro.camera.MediaType
 import com.margelo.nitro.camera.MirrorMode
@@ -32,10 +33,15 @@ class HybridPoseLandmarkerOutput :
     }
 
     override val mediaType: MediaType = MediaType.VIDEO
-    override var outputOrientation: CameraOrientation = CameraOrientation.UP
-        set(value) {
-            field = value
-            imageAnalysis?.targetRotation = value.surfaceRotation
+    // G33: pin outputOrientation to UP and ignore framework writes. Vision
+    // Camera otherwise updates this from the device-orientation sensor every
+    // frame, which flips imageAnalysis.targetRotation between 0/90/180/270
+    // and makes imageInfo.rotationDegrees bounce per-frame. We pin it so the
+    // sensor→display rotation we apply to the bitmap is stable.
+    override var outputOrientation: CameraOrientation
+        get() = CameraOrientation.UP
+        set(_) {
+            // intentionally ignored
         }
     override var mirrorMode: MirrorMode = MirrorMode.AUTO
 
@@ -94,7 +100,6 @@ class HybridPoseLandmarkerOutput :
         }
     }
 
-    @androidx.annotation.OptIn(ExperimentalGetImage::class)
     private fun updateAnalyzer() {
         val imageAnalysis = imageAnalysis ?: return
 
@@ -102,12 +107,6 @@ class HybridPoseLandmarkerOutput :
             try {
                 val callback = onResults
                 if (callback == null) {
-                    return@setAnalyzer
-                }
-
-                val mediaImage = image.image
-                if (mediaImage == null) {
-                    Log.w(TAG, "analyze: image.image was null, skipping frame")
                     return@setAnalyzer
                 }
 
@@ -126,7 +125,34 @@ class HybridPoseLandmarkerOutput :
                 }
                 lastFrameTimestampMs = frameTsMs
 
-                val mpImage = MediaImageBuilder(mediaImage).build()
+                // G33: rotate the bitmap manually before handing it to
+                // MediaPipe. The earlier ImageProcessingOptions.setRotationDegrees
+                // path was accepted by MediaPipe Tasks 0.10.21 but didn't
+                // actually rotate the input image — landmarks came back
+                // collapsed against the sensor-orientation axis. Rotating the
+                // bitmap up-front and passing the upright frame with no
+                // rotation hint is the documented fallback and produces a
+                // correctly-oriented detection.
+                //
+                // We use ImageProxy.toBitmap() (CameraX 1.3+; we ship 1.7
+                // -alpha01) which handles the RGBA_8888 → Bitmap decode that
+                // matches our setOutputImageFormat above.
+                val sourceBitmap: Bitmap = image.toBitmap()
+                val rotationDegrees = image.imageInfo.rotationDegrees
+                val uprightBitmap: Bitmap = if (rotationDegrees != 0) {
+                    val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+                    val rotated = Bitmap.createBitmap(
+                        sourceBitmap, 0, 0,
+                        sourceBitmap.width, sourceBitmap.height,
+                        matrix, true,
+                    )
+                    sourceBitmap.recycle()
+                    rotated
+                } else {
+                    sourceBitmap
+                }
+
+                val mpImage = BitmapImageBuilder(uprightBitmap).build()
 
                 val t0 = System.nanoTime()
                 val result = mp.detectForVideo(mpImage, frameTsMs)
@@ -160,14 +186,23 @@ class HybridPoseLandmarkerOutput :
                     val windowSec = (nowNs - perfWindowStartNs) / 1e9
                     val analyzerFps = perfFrameCount / windowSec
                     val avgMs = perfInferenceMsSum / perfFrameCount
+                    val lShld = landmarks[11]
+                    val rShld = landmarks[12]
+                    val lHip = landmarks[23]
+                    val rHip = landmarks[24]
                     Log.i(
                         TAG,
-                        "perf: analyzerFps=%.1f avgInferMs=%.1f delegate=%s frames=%d window=%.2fs".format(
+                        ("perf: fps=%.1f infer=%.1fms %s rot=%d " +
+                            "lShld=(%.2f,%.2f|v%.2f) rShld=(%.2f,%.2f|v%.2f) " +
+                            "lHip=(%.2f,%.2f|v%.2f) rHip=(%.2f,%.2f|v%.2f)").format(
                             analyzerFps,
                             avgMs,
                             if (PoseLandmarkerCore.usingGpu) "GPU" else "CPU",
-                            perfFrameCount,
-                            windowSec,
+                            rotationDegrees,
+                            lShld.x, lShld.y, lShld.visibility,
+                            rShld.x, rShld.y, rShld.visibility,
+                            lHip.x, lHip.y, lHip.visibility,
+                            rHip.x, rHip.y, rHip.visibility,
                         ),
                     )
                     perfFrameCount = 0
