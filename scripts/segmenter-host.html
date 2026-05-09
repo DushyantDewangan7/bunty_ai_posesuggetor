@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>mediapipe segmenter host</title>
+  </head>
+  <body>
+    <div id="status">loading...</div>
+    <script type="module">
+      // Loaded inside headless Chromium by puppeteer. Mirrors the structure of
+      // mediapipe-host.html (process-poses.mjs's PoseLandmarker host) but uses
+      // ImageSegmenter for selfie/foreground masking. Exposes window.__segment
+      // so generate-pose-outline.mjs can call it via page.evaluate.
+      //
+      // Same MediaPipe Tasks Vision version pinned by the existing pose
+      // pipeline (process-poses.mjs / mediapipe-host.html). Models are fetched
+      // from Google's MediaPipe model storage on first use.
+      const TASKS_VISION_VERSION = '0.10.18';
+      const status = document.getElementById('status');
+
+      try {
+        const tv = await import(
+          `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/+esm`
+        );
+        status.textContent = 'tasks-vision imported';
+
+        const fileset = await tv.FilesetResolver.forVisionTasks(
+          `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/wasm`,
+        );
+        status.textContent = 'fileset resolved';
+
+        const segmenter = await tv.ImageSegmenter.createFromOptions(fileset, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
+          },
+          runningMode: 'IMAGE',
+          outputCategoryMask: true,
+          outputConfidenceMasks: false,
+        });
+        status.textContent = 'segmenter ready';
+
+        window.__segment = async (dataUrl) => {
+          const img = new Image();
+          img.src = dataUrl;
+          await img.decode();
+
+          const result = segmenter.segment(img);
+          const mask = result.categoryMask;
+          if (!mask) {
+            return { error: 'segment() returned no categoryMask' };
+          }
+
+          const width = mask.width;
+          const height = mask.height;
+          const raw = mask.getAsUint8Array();
+
+          // Encode as base64 to round-trip through page.evaluate without the
+          // overhead of serializing a giant typed-array as a JS array literal.
+          // CHUNK keeps us under V8's call-stack limit on String.fromCharCode.
+          const CHUNK = 0x8000;
+          let bin = '';
+          for (let i = 0; i < raw.length; i += CHUNK) {
+            bin += String.fromCharCode.apply(null, raw.subarray(i, i + CHUNK));
+          }
+          const b64 = btoa(bin);
+
+          // Drop native handles owned by the WASM heap before we return.
+          mask.close?.();
+          result.close?.();
+
+          return { width, height, length: raw.length, maskB64: b64 };
+        };
+
+        window.__ready = true;
+        status.textContent = 'ready';
+      } catch (err) {
+        window.__error = String(err?.stack ?? err?.message ?? err);
+        status.textContent = 'ERROR: ' + window.__error;
+      }
+    </script>
+  </body>
+</html>

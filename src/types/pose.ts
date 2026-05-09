@@ -13,6 +13,11 @@ export interface PoseTarget {
   referenceLandmarks: PoseLandmark[];
   /** Difficulty 1-5 */
   difficulty: number;
+  /**
+   * SVG outline asset filename under `assets/poseOutlines/`. See ADR-001 G28
+   * and `getOutlineAssetForPose()` for production-vs-dev semantics.
+   */
+  outlineSvg?: string;
 }
 
 export interface MatchResult {

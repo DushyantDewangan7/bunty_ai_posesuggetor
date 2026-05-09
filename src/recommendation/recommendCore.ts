@@ -17,7 +17,7 @@ function richCategoryToLegacy(c: RichPoseCategory): PoseCategory {
 }
 
 function richToPoseTarget(rich: RichPose): PoseTarget {
-  return {
+  const target: PoseTarget = {
     id: rich.id,
     name: rich.name,
     category: richCategoryToLegacy(rich.category),
@@ -25,6 +25,8 @@ function richToPoseTarget(rich: RichPose): PoseTarget {
     referenceLandmarks: rich.referenceLandmarks,
     difficulty: rich.difficulty,
   };
+  if (rich.outlineSvg) target.outlineSvg = rich.outlineSvg;
+  return target;
 }
 
 function isOpposite(a: 'male' | 'female', b: 'male' | 'female'): boolean {

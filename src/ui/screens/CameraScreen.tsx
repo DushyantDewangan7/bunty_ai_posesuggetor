@@ -130,11 +130,12 @@ export function CameraScreen(): React.JSX.Element {
         outputs={[poseOutput, photoOutput]}
       />
       <Canvas style={StyleSheet.absoluteFill}>
-        {/* G27: live silhouette renders first (bottom z); ghost target overlays
-            on top so the user aligns their green body inside the white ghost. */}
+        {/* G27: live silhouette renders first (bottom z). The ghost target is
+            now a sibling because, per ADR-001 G28, it's an SVG (or, in dev
+            fallback, its own Skia Canvas) — different renderer trees. */}
         <PoseSkeleton mirrored={false} />
-        <PoseTargetOverlay mirrored={false} />
       </Canvas>
+      <PoseTargetOverlay mirrored={false} />
       <MatchFeedback />
       <PoseSelector />
       <CaptureButton />

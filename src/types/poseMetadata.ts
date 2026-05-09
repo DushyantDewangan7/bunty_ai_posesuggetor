@@ -53,4 +53,12 @@ export interface RichPose {
   /** 33 landmarks in canonical pose space (post-normalize). */
   referenceLandmarks: PoseLandmark[];
   imageAttribution: ImageAttribution;
+
+  /**
+   * Filename of the SVG outline asset under `assets/poseOutlines/`. REQUIRED
+   * in production — `getOutlineAssetForPose()` throws if missing on a release
+   * build. In dev/internal builds a missing value falls back to the geometric
+   * silhouette (G27) with a console.warn. See ADR-001 G28.
+   */
+  outlineSvg?: string;
 }

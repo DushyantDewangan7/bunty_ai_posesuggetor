@@ -42,9 +42,10 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-prettier": "5.5.5",
     "nitrogen": "0.35.6",
+    "potrace": "2.1.8",
     "prettier": "3.8.3",
     "puppeteer": "24.5.0",
-    "sharp": "0.33.5",
+    "sharp": "0.32.6",
     "typescript": "5.9.3"
   },
   "private": true
