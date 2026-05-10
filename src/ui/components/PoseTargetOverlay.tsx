@@ -1,6 +1,7 @@
 import { Canvas, Group, Path } from '@shopify/react-native-skia';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { getOutlineAssetForPose } from '../../library/poseOutlineAsset';
 import { usePoseStream } from '../../state/poseStream';
@@ -208,12 +209,44 @@ const SMOOTHING_TICK_MS = 50;
 // so latestFrame.timestamp is the only signal.
 const STALE_FRAME_MS = 250;
 
+// G37 white→green match-color hysteresis. Score is in 0..1 from
+// matchPose.fitScore. ENTER raises matched=true; EXIT (lower) clears it,
+// so the outline doesn't flicker when fitScore hovers around the boundary.
+const MATCH_ENTER = 0.75;
+const MATCH_EXIT = 0.65;
+const MATCH_CROSSFADE_MS = 250;
+const OUTLINE_COLOR_UNMATCHED = '#FFFFFF';
+const OUTLINE_COLOR_MATCHED = '#22C55E';
+
 function DynamicPoseOutline({
   outlineAsset,
   previewWidth,
   previewHeight,
 }: DynamicPoseOutlineProps): React.JSX.Element {
   const [smoothed, setSmoothed] = useState<SmoothedTransform>(createInitialTransform);
+
+  // G37: hysteresis-gated match flag drives the white→green crossfade.
+  // fitScore is null when no normalized frame is available (no person in
+  // view); `?? 0` treats that as unmatched, which is correct UX — the
+  // user shouldn't see a green outline if they're not in frame.
+  const fitScore = usePoseTarget((s) => s.matchResult?.fitScore ?? 0);
+  const [matched, setMatched] = useState(false);
+  useEffect(() => {
+    if (!matched && fitScore >= MATCH_ENTER) setMatched(true);
+    else if (matched && fitScore < MATCH_EXIT) setMatched(false);
+  }, [fitScore, matched]);
+
+  const matchProgress = useSharedValue(0);
+  useEffect(() => {
+    matchProgress.value = withTiming(matched ? 1 : 0, { duration: MATCH_CROSSFADE_MS });
+  }, [matched, matchProgress]);
+
+  const whiteAnimStyle = useAnimatedStyle(() => ({
+    opacity: 1 - matchProgress.value,
+  }));
+  const greenAnimStyle = useAnimatedStyle(() => ({
+    opacity: matchProgress.value,
+  }));
 
   // At scale=1 the displayed body height is `SVG_BODY_FRACTION * fitDim`
   // pixels (fitDim = the shorter of preview width/height because of the
@@ -264,9 +297,27 @@ function DynamicPoseOutline({
     [previewWidth, previewHeight, smoothed],
   );
 
+  // Two stacked SVG layers crossfade between white and green. Reanimated
+  // multiplies its opacity with the parent View's `smoothed.opacity`, so
+  // the hold/fade-on-landmark-loss path from G36 still works correctly.
   return (
     <View style={wrapperStyle} pointerEvents="none">
-      <PoseOutlineSvg outlineAsset={outlineAsset} width={previewWidth} height={previewHeight} />
+      <Animated.View style={[StyleSheet.absoluteFill, whiteAnimStyle]} pointerEvents="none">
+        <PoseOutlineSvg
+          outlineAsset={outlineAsset}
+          color={OUTLINE_COLOR_UNMATCHED}
+          width={previewWidth}
+          height={previewHeight}
+        />
+      </Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, greenAnimStyle]} pointerEvents="none">
+        <PoseOutlineSvg
+          outlineAsset={outlineAsset}
+          color={OUTLINE_COLOR_MATCHED}
+          width={previewWidth}
+          height={previewHeight}
+        />
+      </Animated.View>
     </View>
   );
 }

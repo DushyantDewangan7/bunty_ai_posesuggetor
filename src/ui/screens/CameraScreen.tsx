@@ -1,4 +1,3 @@
-import { Canvas } from '@shopify/react-native-skia';
 import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { openSettings } from 'react-native-permissions';
@@ -20,7 +19,6 @@ import { PoseSelector } from '../components/PoseSelector';
 import { PoseTargetOverlay } from '../components/PoseTargetOverlay';
 import { SettingsButton } from '../components/SettingsButton';
 import { SmartSuggestionsButton } from '../components/SmartSuggestionsButton';
-import { PoseSkeleton } from '../overlays/PoseSkeleton';
 import { FaceCaptureScreen } from './onboarding/FaceCaptureScreen';
 import { SettingsModal } from './SettingsModal';
 
@@ -129,12 +127,6 @@ export function CameraScreen(): React.JSX.Element {
         isActive={true}
         outputs={[poseOutput, photoOutput]}
       />
-      <Canvas style={StyleSheet.absoluteFill}>
-        {/* G27: live silhouette renders first (bottom z). The ghost target is
-            now a sibling because, per ADR-001 G28, it's an SVG (or, in dev
-            fallback, its own Skia Canvas) — different renderer trees. */}
-        <PoseSkeleton mirrored={false} />
-      </Canvas>
       <PoseTargetOverlay mirrored={false} />
       <MatchFeedback />
       <PoseSelector />
