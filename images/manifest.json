@@ -27,6 +27,243 @@
           "license": "Pexels License"
         }
       }
+    },
+    {
+      "imageFile": "pose-002-tpose.jpg",
+      "metadata": {
+        "id": "tpose",
+        "name": "T-pose",
+        "description": "Stand facing the camera with arms straight out to the sides.",
+        "category": "standing",
+        "tags": ["calibration", "reference"],
+        "difficulty": 1,
+        "genderOrientation": "neutral",
+        "bodyTypeHints": [],
+        "moodTags": ["serious"],
+        "useCase": ["casual"],
+        "lightingRecommendation": "any",
+        "recommendedClothing": "any",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "tpose_outline.svg",
+        "imageAttribution": {
+          "source": "ai-generated",
+          "url": "",
+          "author": "AI-generated (DALL-E 3 via ChatGPT)",
+          "license": "OpenAI Terms (commercial use permitted)",
+          "aiPrompt": "Full-body realistic photograph of a young adult standing facing the camera in a T-pose with both arms perfectly horizontal at shoulder height extending straight out to the sides, palms down, feet together, neutral expression, plain neutral light-grey studio background, bright even daylight, casual t-shirt and jeans, head to feet fully visible including shoes, portrait orientation, photorealistic studio shot, no stylization."
+        }
+      }
+    },
+    {
+      "imageFile": "pose-003-hands-hips.jpg",
+      "metadata": {
+        "id": "hands-hips",
+        "name": "Hands on hips",
+        "description": "Stand confidently with both hands resting on your hips.",
+        "category": "standing",
+        "tags": ["confident", "classic"],
+        "difficulty": 1,
+        "genderOrientation": "neutral",
+        "bodyTypeHints": [],
+        "moodTags": ["confident"],
+        "useCase": ["casual", "fashion"],
+        "lightingRecommendation": "any",
+        "recommendedClothing": "any",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "hands-hips_outline.svg",
+        "imageAttribution": {
+          "source": "pexels",
+          "url": "https://www.pexels.com/photo/30381009/",
+          "author": "Andrea Musto",
+          "license": "Pexels License"
+        }
+      }
+    },
+    {
+      "imageFile": "pose-004-arm-up-right.jpg",
+      "metadata": {
+        "id": "arm-up-right",
+        "name": "Arm raised",
+        "description": "Raise your right arm straight up, left arm relaxed at your side.",
+        "category": "standing",
+        "tags": ["playful", "dynamic"],
+        "difficulty": 2,
+        "genderOrientation": "neutral",
+        "bodyTypeHints": [],
+        "moodTags": ["playful", "confident"],
+        "useCase": ["travel", "casual"],
+        "lightingRecommendation": "bright",
+        "recommendedClothing": "casual",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "arm-up-right_outline.svg",
+        "imageAttribution": {
+          "source": "ai-generated",
+          "url": "",
+          "author": "AI-generated (DALL-E 3 via ChatGPT)",
+          "license": "OpenAI Terms (commercial use permitted)",
+          "aiPrompt": "Full-body realistic photograph of a young adult standing facing the camera with their right arm raised straight up overhead and left arm relaxed at the side, playful confident expression, plain neutral light-grey studio background, bright even daylight, casual t-shirt and jeans, head to feet visible, portrait orientation, photorealistic studio shot, no stylization."
+        }
+      }
+    },
+    {
+      "imageFile": "pose-005-power-stance.jpg",
+      "metadata": {
+        "id": "power-stance",
+        "name": "Power stance",
+        "description": "Feet shoulder-width apart, hands on hips, chest open.",
+        "category": "standing",
+        "tags": ["confident", "strong"],
+        "difficulty": 2,
+        "genderOrientation": "male",
+        "bodyTypeHints": [],
+        "moodTags": ["confident", "serious"],
+        "useCase": ["fashion", "fitness"],
+        "lightingRecommendation": "dramatic",
+        "recommendedClothing": "fitted",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "power-stance_outline.svg",
+        "imageAttribution": {
+          "source": "pexels",
+          "url": "https://www.pexels.com/photo/26125921/",
+          "author": "Bruno Curly",
+          "license": "Pexels License"
+        }
+      }
+    },
+    {
+      "imageFile": "pose-006-casual-lean.jpg",
+      "metadata": {
+        "id": "casual-lean",
+        "name": "Casual lean",
+        "description": "Tilt your weight to one side for a relaxed, candid look.",
+        "category": "lifestyle",
+        "tags": ["relaxed", "candid"],
+        "difficulty": 2,
+        "genderOrientation": "neutral",
+        "bodyTypeHints": [],
+        "moodTags": ["relaxed"],
+        "useCase": ["casual", "fashion"],
+        "lightingRecommendation": "soft",
+        "recommendedClothing": "casual",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "casual-lean_outline.svg",
+        "imageAttribution": {
+          "source": "pexels",
+          "url": "https://www.pexels.com/photo/11000250/",
+          "author": "Vincent B",
+          "license": "Pexels License"
+        }
+      }
+    },
+    {
+      "imageFile": "pose-007-warrior-1.jpg",
+      "metadata": {
+        "id": "warrior-1",
+        "name": "Warrior I",
+        "description": "Front leg bent, back leg straight, arms reaching overhead.",
+        "category": "fitness",
+        "tags": ["yoga", "strong"],
+        "difficulty": 4,
+        "genderOrientation": "neutral",
+        "bodyTypeHints": [],
+        "moodTags": ["serious", "confident"],
+        "useCase": ["fitness"],
+        "lightingRecommendation": "bright",
+        "recommendedClothing": "fitted",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "warrior-1_outline.svg",
+        "imageAttribution": {
+          "source": "pexels",
+          "url": "https://www.pexels.com/photo/6311271/",
+          "author": "Gabby K",
+          "license": "Pexels License"
+        }
+      }
+    },
+    {
+      "imageFile": "pose-008-squat.jpg",
+      "metadata": {
+        "id": "squat",
+        "name": "Squat",
+        "description": "Bend knees, hips low, arms forward for balance.",
+        "category": "fitness",
+        "tags": ["fitness", "strength"],
+        "difficulty": 3,
+        "genderOrientation": "neutral",
+        "bodyTypeHints": [],
+        "moodTags": ["serious"],
+        "useCase": ["fitness"],
+        "lightingRecommendation": "bright",
+        "recommendedClothing": "fitted",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "squat_outline.svg",
+        "imageAttribution": {
+          "source": "pexels",
+          "url": "https://www.pexels.com/photo/30246175/",
+          "author": "Andrea Musto",
+          "license": "Pexels License"
+        }
+      }
+    },
+    {
+      "imageFile": "pose-009-crosslegged.jpg",
+      "metadata": {
+        "id": "crosslegged",
+        "name": "Cross-legged",
+        "description": "Seated with legs crossed, hands resting on the knees.",
+        "category": "sitting",
+        "tags": ["relaxed", "meditative"],
+        "difficulty": 2,
+        "genderOrientation": "neutral",
+        "bodyTypeHints": [],
+        "moodTags": ["relaxed"],
+        "useCase": ["casual"],
+        "lightingRecommendation": "soft",
+        "recommendedClothing": "casual",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "crosslegged_outline.svg",
+        "imageAttribution": {
+          "source": "pexels",
+          "url": "https://www.pexels.com/photo/6454159/",
+          "author": "Marta Wave",
+          "license": "Pexels License"
+        }
+      }
+    },
+    {
+      "imageFile": "pose-011-thinker.jpg",
+      "metadata": {
+        "id": "thinker",
+        "name": "The thinker",
+        "description": "Bring your right hand up near your chin, contemplative look.",
+        "category": "lifestyle",
+        "tags": ["thoughtful", "lifestyle"],
+        "difficulty": 2,
+        "genderOrientation": "neutral",
+        "bodyTypeHints": [],
+        "moodTags": ["serious", "professional"],
+        "useCase": ["fashion", "casual"],
+        "lightingRecommendation": "soft",
+        "recommendedClothing": "any",
+        "groupSize": 1,
+        "locationType": "any",
+        "outlineSvg": "thinker_outline.svg",
+        "imageAttribution": {
+          "source": "ai-generated",
+          "url": "",
+          "author": "AI-generated (DALL-E 3 via ChatGPT)",
+          "license": "OpenAI Terms (commercial use permitted)",
+          "aiPrompt": "Full-body realistic photograph of a young adult standing facing the camera with their right hand raised to the chin in a contemplative thinking pose, left arm relaxed at the side (NOT crossed across the body), serious thoughtful expression, plain neutral light-grey studio background, soft even lighting, smart-casual shirt and trousers, head to feet fully visible including shoes — no chest-up cropping, portrait orientation, photorealistic studio shot."
+        }
+      }
     }
   ]
 }

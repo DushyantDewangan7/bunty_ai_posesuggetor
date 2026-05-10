@@ -28,10 +28,12 @@ export type GroupSize = 1 | 2 | 'group';
 export type LocationType = 'indoor' | 'outdoor_natural' | 'outdoor_urban' | 'studio' | 'any';
 
 export interface ImageAttribution {
-  source: 'pexels' | 'unsplash' | 'manual';
+  source: 'pexels' | 'unsplash' | 'manual' | 'ai-generated';
   url: string;
   author: string;
   license: string;
+  /** Present only for source === 'ai-generated' — the prompt used to generate the image. */
+  aiPrompt?: string;
 }
 
 export interface RichPose {
