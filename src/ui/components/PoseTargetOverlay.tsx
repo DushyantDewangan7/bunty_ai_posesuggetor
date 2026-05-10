@@ -1,5 +1,5 @@
 import { Canvas, Group, Path } from '@shopify/react-native-skia';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { getOutlineAssetForPose } from '../../library/poseOutlineAsset';
@@ -7,6 +7,13 @@ import { usePoseStream } from '../../state/poseStream';
 import { usePoseTarget } from '../../state/poseTarget';
 import type { PoseLandmark } from '../../types/landmarks';
 import { computeBodyOutlinePaths } from '../overlays/bodyOutline';
+import { computeBodyBBox } from '../overlays/bodyBoundingBox';
+import {
+  applyMissingUpdate,
+  applyValidUpdate,
+  createInitialTransform,
+  type SmoothedTransform,
+} from '../overlays/outlineSmoothing';
 import { PoseOutlineSvg } from '../overlays/PoseOutlineSvg';
 import { imageToScreen } from '../overlays/skeletonGeometry';
 
@@ -32,9 +39,12 @@ const GHOST_EDGE_STROKE = 2.5;
 /**
  * Renders the currently-selected target pose as the user-facing pose guide.
  *
- * Per ADR-001 G28: the canonical guide is a clean white dotted SVG contour
- * produced offline by `scripts/generate-pose-outline.mjs`, rendered
- * statically centered in the camera preview. In dev/internal builds, poses
+ * Per ADR-001 G28/G36: the canonical guide is a clean white dotted SVG
+ * contour produced offline by `scripts/generate-pose-outline.mjs`, wrapped
+ * in a transform-bearing View that translates and scales the outline to
+ * follow the user's torso center and body height in real time (G36).
+ * Smoothing + hold/fade on landmark loss live in `outlineSmoothing.ts`;
+ * bbox computation in `bodyBoundingBox.ts`. In dev/internal builds, poses
  * without a baked SVG fall back to the geometric silhouette renderer from
  * G27 (with a console.warn fired by `getOutlineAssetForPose`). In
  * production, missing SVGs throw so the gap is impossible to ship.
@@ -44,9 +54,6 @@ const GHOST_EDGE_STROKE = 2.5;
  * wraps either branch in its own absolute-fill subtree. The fallback wraps
  * the Skia primitives in its own Canvas so that calling code doesn't have
  * to know which renderer is in use.
- *
- * Dynamic body-bbox-driven positioning is deferred (see ADR-001 G32) until
- * the camera frame rotation issue is resolved.
  */
 export function PoseTargetOverlay({
   mirrored = false,
@@ -66,9 +73,7 @@ export function PoseTargetOverlay({
 
   if (outlineAsset) {
     return (
-      <View style={styles.overlay} pointerEvents="none">
-        <PoseOutlineSvg outlineAsset={outlineAsset} width={width} height={height} />
-      </View>
+      <DynamicPoseOutline outlineAsset={outlineAsset} previewWidth={width} previewHeight={height} />
     );
   }
 
@@ -183,4 +188,85 @@ function projectCanonicalToImage(
     visibility: p.visibility,
     presence: p.presence,
   }));
+}
+
+interface DynamicPoseOutlineProps {
+  outlineAsset: string;
+  previewWidth: number;
+  previewHeight: number;
+}
+
+// SVG viewBox is 1000×1000 with `xMidYMid meet`, so at scale=1 the body is
+// rendered into a square area of edge `min(previewWidth, previewHeight)`
+// centered in the preview, occupying SVG_BODY_FRACTION of that square.
+const SVG_BODY_FRACTION = 0.9;
+// Tick rate for the smoothing heartbeat. Faster than landmark callbacks
+// (~10–15 fps) so the fade animation runs visibly smooth even between frames.
+const SMOOTHING_TICK_MS = 50;
+// Frames older than this are treated as "no person in view" and trigger
+// the missing-update / fade path. Native silently drops no-person frames,
+// so latestFrame.timestamp is the only signal.
+const STALE_FRAME_MS = 250;
+
+function DynamicPoseOutline({
+  outlineAsset,
+  previewWidth,
+  previewHeight,
+}: DynamicPoseOutlineProps): React.JSX.Element {
+  const [smoothed, setSmoothed] = useState<SmoothedTransform>(createInitialTransform);
+
+  // At scale=1 the displayed body height is `SVG_BODY_FRACTION * fitDim`
+  // pixels (fitDim = the shorter of preview width/height because of the
+  // SVG's `xMidYMid meet` aspect-fit). We want it to equal
+  // `bbox.height * previewHeight` pixels, so scale = ratio of the two.
+  const fitDim = Math.min(previewWidth, previewHeight);
+  const scaleDenominator = SVG_BODY_FRACTION * fitDim;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const frame = usePoseStream.getState().latestFrame;
+      const now = Date.now();
+      const isFresh =
+        frame?.landmarks != null && performance.now() - frame.timestamp < STALE_FRAME_MS;
+      if (isFresh) {
+        const bbox = computeBodyBBox(frame!.landmarks);
+        if (bbox.isValid) {
+          const targetScale = (bbox.height * previewHeight) / scaleDenominator;
+          setSmoothed((curr) =>
+            applyValidUpdate(
+              curr,
+              { centerX: bbox.centerX, centerY: bbox.centerY, scale: targetScale },
+              now,
+            ),
+          );
+          return;
+        }
+      }
+      setSmoothed((curr) => applyMissingUpdate(curr, now));
+    }, SMOOTHING_TICK_MS);
+    return () => clearInterval(id);
+  }, [previewHeight, scaleDenominator]);
+
+  const wrapperStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      left: 0,
+      top: 0,
+      width: previewWidth,
+      height: previewHeight,
+      opacity: smoothed.opacity,
+      transform: [
+        { translateX: smoothed.centerX * previewWidth - previewWidth / 2 },
+        { translateY: smoothed.centerY * previewHeight - previewHeight / 2 },
+        { scale: smoothed.scale },
+      ],
+    }),
+    [previewWidth, previewHeight, smoothed],
+  );
+
+  return (
+    <View style={wrapperStyle} pointerEvents="none">
+      <PoseOutlineSvg outlineAsset={outlineAsset} width={previewWidth} height={previewHeight} />
+    </View>
+  );
 }
