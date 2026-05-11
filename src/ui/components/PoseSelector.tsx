@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 
 import { POSE_LIBRARY } from '../../library/poseLibrary';
+import { getPoseImage } from './poseImageAssetMap';
 import { recommend } from '../../recommendation/recommend';
 import { useCustomPoses } from '../../state/customPoses';
 import { usePoseTarget } from '../../state/poseTarget';
@@ -223,6 +225,14 @@ export function PoseSelector(): React.JSX.Element {
   );
 }
 
+function PoseTileVisual({ pose }: { pose: PoseTarget }): React.JSX.Element {
+  const image = getPoseImage(pose.id);
+  if (image !== undefined) {
+    return <Image source={image} style={styles.poseImage} resizeMode="contain" />;
+  }
+  return <Text style={styles.glyph}>{CATEGORY_GLYPH[pose.category]}</Text>;
+}
+
 function PoseCard({
   pose,
   active,
@@ -240,7 +250,7 @@ function PoseCard({
       onPress={onPress}
       style={[styles.card, recommended && styles.cardRecommended, active && styles.cardActive]}
     >
-      <Text style={styles.glyph}>{CATEGORY_GLYPH[pose.category]}</Text>
+      <PoseTileVisual pose={pose} />
       <Text style={styles.name} numberOfLines={1}>
         {pose.name}
       </Text>
@@ -270,7 +280,7 @@ function AiPickCard({
       delayLongPress={400}
       style={[styles.card, styles.cardAiPick, active && styles.cardActive]}
     >
-      <Text style={styles.glyph}>{CATEGORY_GLYPH[pose.category]}</Text>
+      <PoseTileVisual pose={pose} />
       <Text style={styles.name} numberOfLines={1}>
         {pose.name}
       </Text>
@@ -412,6 +422,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 22,
     lineHeight: 26,
+  },
+  poseImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   name: {
     color: '#fff',
