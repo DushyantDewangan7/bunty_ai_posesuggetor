@@ -21,6 +21,7 @@ import { SettingsButton } from '../components/SettingsButton';
 import { SmartSuggestionsButton } from '../components/SmartSuggestionsButton';
 import { FaceCaptureScreen } from './onboarding/FaceCaptureScreen';
 import { SettingsModal } from './SettingsModal';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CAMERA_RATIONALE =
   'AI Pose Suggestor needs camera access to suggest poses based on your body and surroundings. Your camera frames never leave your device.';
@@ -77,6 +78,8 @@ export function CameraScreen(): React.JSX.Element {
     return unsub;
   }, []);
 
+  const insets = useSafeAreaInsets();
+
   if (!hasPermission) {
     return (
       <View style={styles.centered}>
@@ -120,7 +123,7 @@ export function CameraScreen(): React.JSX.Element {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} >
       <Camera
         style={StyleSheet.absoluteFill}
         device={device}
@@ -134,7 +137,12 @@ export function CameraScreen(): React.JSX.Element {
       <SmartSuggestionsButton photoOutput={photoOutput} />
       <MockPoseControls />
       <DebugOverlay />
-      <SettingsButton onPress={() => setSettingsOpen(true)} />
+      <SettingsButton
+        style={{
+          top: insets.top + 10, right: insets.right + 10,
+        }}
+        onPress={() => setSettingsOpen(true)}
+      />
       <SettingsModal
         visible={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -143,7 +151,7 @@ export function CameraScreen(): React.JSX.Element {
           setRecapturing(true);
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
