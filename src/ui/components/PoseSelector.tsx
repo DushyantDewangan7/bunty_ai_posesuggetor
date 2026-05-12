@@ -15,6 +15,7 @@ import { getPoseImage } from './poseImageAssetMap';
 import { recommend } from '../../recommendation/recommend';
 import { useAiMode } from '../../state/aiMode';
 import { useCustomPoses } from '../../state/customPoses';
+import { useActivePoseIds } from '../../state/poseLibrary';
 import { usePoseTarget } from '../../state/poseTarget';
 import { useRecommendationSession } from '../../state/recommendationSession';
 import { useSmartSuggestions } from '../../state/smartSuggestionsState';
@@ -51,6 +52,7 @@ export function PoseSelector(): React.JSX.Element {
   const markShown = useRecommendationSession((s) => s.markShown);
   const captures = useCustomPoses((s) => s.captures);
   const aiMode = useAiMode();
+  const activePoseIds = useActivePoseIds();
   const smartLoadingRaw = useSmartSuggestions((s) => s.loading);
   const smartResultRaw = useSmartSuggestions((s) => s.result);
   const smartErrorRaw = useSmartSuggestions((s) => s.error);
@@ -91,9 +93,14 @@ export function PoseSelector(): React.JSX.Element {
       .map((r) => r.pose)
       .filter((p) => !aiPickIds.has(p.id));
     const recIds = new Set(recOrdered.map((p) => p.id));
-    const others = POSE_LIBRARY.filter((p) => !recIds.has(p.id) && !aiPickIds.has(p.id));
+    // Only the library tail honors the user's Pose Library toggles.
+    // For You, AI Picks, and custom captures bypass this filter because their
+    // value is contextual (scene-driven or explicitly user-saved).
+    const others = POSE_LIBRARY.filter(
+      (p) => !recIds.has(p.id) && !aiPickIds.has(p.id) && activePoseIds.has(p.id),
+    );
     return { recommendedPoses: recOrdered, otherPoses: others };
-  }, [profile, shownPoseIds, aiPickIds]);
+  }, [profile, shownPoseIds, aiPickIds, activePoseIds]);
 
   const handlePress = (pose: PoseTarget): void => {
     selectTarget(pose);

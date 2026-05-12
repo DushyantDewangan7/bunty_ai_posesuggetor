@@ -2,8 +2,10 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { useCurrentScreen } from './src/state/screen';
 import { useUserProfile } from './src/state/userProfile';
 import { CameraScreen } from './src/ui/screens/CameraScreen';
+import { MarketplaceScreen } from './src/ui/screens/MarketplaceScreen';
 import { OnboardingNavigator } from './src/ui/screens/onboarding/OnboardingNavigator';
 
 if (Platform.OS === 'android') {
@@ -25,12 +27,20 @@ if (Platform.OS === 'android') {
 
 export default function App(): React.JSX.Element {
   const onboardingComplete = useUserProfile((s) => s.profile.onboardingComplete);
+  const screen = useCurrentScreen();
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
       {onboardingComplete ? (
-        <CameraScreen />
+        // Inactive screen is unmounted (not display:none) so the camera releases
+        // resources when the user navigates away. ~1-2s re-init on return is
+        // acceptable for v1; revisit if it becomes painful.
+        screen === 'camera' ? (
+          <CameraScreen />
+        ) : (
+          <MarketplaceScreen />
+        )
       ) : (
         <OnboardingNavigator
           onDone={() => {

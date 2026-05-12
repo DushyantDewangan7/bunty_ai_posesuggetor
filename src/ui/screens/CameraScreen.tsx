@@ -14,12 +14,14 @@ import { matchPose } from '../../recommendation/poseMatch';
 import { useAiMode } from '../../state/aiMode';
 import { usePoseStream } from '../../state/poseStream';
 import { usePoseTarget } from '../../state/poseTarget';
+import { useScreenStore } from '../../state/screen';
 import { AskAiButton } from '../components/AskAiButton';
 import { CaptureButton } from '../components/CaptureButton';
 import { MatchFeedback } from '../components/MatchFeedback';
 import { MockPoseControls } from '../components/MockPoseControls';
 import { PoseSelector } from '../components/PoseSelector';
 import { PoseTargetOverlay } from '../components/PoseTargetOverlay';
+import { MarketplaceButton } from '../components/MarketplaceButton';
 import { SettingsButton } from '../components/SettingsButton';
 import { SmartSuggestionsButton } from '../components/SmartSuggestionsButton';
 import { FaceCaptureScreen } from './onboarding/FaceCaptureScreen';
@@ -153,6 +155,13 @@ export function CameraScreen(): React.JSX.Element {
           right: insets.right + 10,
         }}
         onPress={() => setSettingsOpen(true)}
+      />
+      <MarketplaceButton
+        style={{
+          top: insets.top + 58,
+          right: insets.right + 10,
+        }}
+        onPress={() => useScreenStore.getState().navigate('marketplace')}
       />
       <SettingsModal
         visible={settingsOpen}
