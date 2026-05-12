@@ -2,13 +2,13 @@ import {
   Alert,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAiModeStore } from '../../state/aiMode';
 import { useCustomPoses } from '../../state/customPoses';
@@ -104,7 +104,7 @@ export function SettingsModal({ visible, onClose, onRequestRecapture }: Props): 
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.sheet}>
-          <SafeAreaView style={styles.safeArea}>
+          <SafeAreaView style={styles.safeArea} edges={['bottom']}>
             <View style={styles.handle} />
             <View style={styles.header}>
               <Text style={styles.title}>Settings</Text>

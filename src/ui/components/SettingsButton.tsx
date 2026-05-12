@@ -2,11 +2,12 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 interface Props {
   onPress: () => void;
+  style?: any;
 }
 
-export function SettingsButton({ onPress }: Props): React.JSX.Element {
+export function SettingsButton({ onPress, style }: Props): React.JSX.Element {
   return (
-    <Pressable onPress={onPress} style={styles.button}>
+    <Pressable onPress={onPress} style={[styles.button, style]}>
       <Text style={styles.icon}>⚙️</Text>
     </Pressable>
   );

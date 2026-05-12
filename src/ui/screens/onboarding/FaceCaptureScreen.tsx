@@ -1,6 +1,7 @@
 import { Canvas, Oval } from '@shopify/react-native-skia';
 import { useEffect, useState } from 'react';
-import { Dimensions, Linking, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { openSettings } from 'react-native-permissions';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 
