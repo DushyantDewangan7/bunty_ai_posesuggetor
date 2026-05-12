@@ -5,10 +5,12 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
 
+import { useAiModeStore } from '../../state/aiMode';
 import { useCustomPoses } from '../../state/customPoses';
 import { useUserProfile } from '../../state/userProfile';
 import type { FaceShape, Gender, HeightBucket } from '../../types/userProfile';
@@ -56,6 +58,8 @@ export function SettingsModal({ visible, onClose, onRequestRecapture }: Props): 
   const profile = useUserProfile((s) => s.profile);
   const setGender = useUserProfile((s) => s.setGender);
   const setHeightBucket = useUserProfile((s) => s.setHeightBucket);
+  const aiMode = useAiModeStore((s) => s.aiMode);
+  const setAiMode = useAiModeStore((s) => s.setAiMode);
 
   const handleRedoOnboarding = (): void => {
     Alert.alert(
@@ -109,6 +113,25 @@ export function SettingsModal({ visible, onClose, onRequestRecapture }: Props): 
               </Pressable>
             </View>
             <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>AI features</Text>
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleTextWrap}>
+                    <Text style={styles.toggleLabel}>AI-Enhanced Mode</Text>
+                    <Text style={styles.toggleDescription}>
+                      Use cloud AI for smarter pose recommendations. Sends camera frames to Google
+                      Gemini. Off by default.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={aiMode}
+                    onValueChange={setAiMode}
+                    trackColor={{ false: BORDER, true: ACCENT }}
+                    thumbColor={aiMode ? '#FFFFFF' : '#CCCCCC'}
+                  />
+                </View>
+              </View>
+
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Gender</Text>
                 <View style={styles.genderGrid}>
@@ -270,6 +293,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
     marginBottom: 12,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: SURFACE,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  toggleTextWrap: {
+    flex: 1,
+  },
+  toggleLabel: {
+    color: TEXT,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  toggleDescription: {
+    color: TEXT_MUTED,
+    fontSize: 12,
+    lineHeight: 16,
   },
   genderGrid: {
     flexDirection: 'row',

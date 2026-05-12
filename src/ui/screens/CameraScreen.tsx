@@ -10,6 +10,7 @@ import {
 
 import { usePoseLandmarkerOutput } from '../../camera/usePoseLandmarkerOutput';
 import { matchPose } from '../../recommendation/poseMatch';
+import { useAiMode } from '../../state/aiMode';
 import { usePoseStream } from '../../state/poseStream';
 import { usePoseTarget } from '../../state/poseTarget';
 import { CaptureButton } from '../components/CaptureButton';
@@ -52,6 +53,7 @@ export function CameraScreen(): React.JSX.Element {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [recapturing, setRecapturing] = useState(false);
+  const aiMode = useAiMode();
 
   useEffect(() => {
     if (!hasPermission) {
@@ -131,7 +133,7 @@ export function CameraScreen(): React.JSX.Element {
       <MatchFeedback />
       <PoseSelector />
       <CaptureButton />
-      <SmartSuggestionsButton photoOutput={photoOutput} />
+      {aiMode && <SmartSuggestionsButton photoOutput={photoOutput} />}
       <MockPoseControls />
       <DebugOverlay />
       <SettingsButton onPress={() => setSettingsOpen(true)} />

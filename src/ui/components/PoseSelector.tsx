@@ -13,6 +13,7 @@ import {
 import { POSE_LIBRARY } from '../../library/poseLibrary';
 import { getPoseImage } from './poseImageAssetMap';
 import { recommend } from '../../recommendation/recommend';
+import { useAiMode } from '../../state/aiMode';
 import { useCustomPoses } from '../../state/customPoses';
 import { usePoseTarget } from '../../state/poseTarget';
 import { useRecommendationSession } from '../../state/recommendationSession';
@@ -49,10 +50,18 @@ export function PoseSelector(): React.JSX.Element {
   const shownPoseIds = useRecommendationSession((s) => s.shownPoseIds);
   const markShown = useRecommendationSession((s) => s.markShown);
   const captures = useCustomPoses((s) => s.captures);
-  const smartLoading = useSmartSuggestions((s) => s.loading);
-  const smartResult = useSmartSuggestions((s) => s.result);
-  const smartError = useSmartSuggestions((s) => s.error);
+  const aiMode = useAiMode();
+  const smartLoadingRaw = useSmartSuggestions((s) => s.loading);
+  const smartResultRaw = useSmartSuggestions((s) => s.result);
+  const smartErrorRaw = useSmartSuggestions((s) => s.error);
   const clearSmart = useSmartSuggestions((s) => s.clear);
+
+  // When aiMode is off, hide any leftover loading/result/error state so the
+  // AI Picks section disappears immediately on toggle-off without needing to
+  // clear the smartSuggestions store.
+  const smartLoading = aiMode ? smartLoadingRaw : false;
+  const smartResult = aiMode ? smartResultRaw : null;
+  const smartError = aiMode ? smartErrorRaw : null;
 
   const poseById = useMemo(() => {
     const map = new Map<string, PoseTarget>();
