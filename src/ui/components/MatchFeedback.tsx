@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { useAiCoaching } from '../../state/aiCoaching';
+import { useAiMode } from '../../state/aiMode';
 import { usePoseTarget } from '../../state/poseTarget';
-import type { MatchState } from '../../types/pose';
+import type { MatchResult, MatchState } from '../../types/pose';
 
 const COLOR_FAR = '#FF4D4F';
 const COLOR_CLOSE = '#FACC15';
@@ -45,6 +47,22 @@ function describeWorstJoints(indices: number[]): string | null {
   return `Adjust your ${unique[0]} and ${unique[1]}`;
 }
 
+/**
+ * Returns the coaching text to display: AI tip when aiMode is on AND a tip is
+ * available, otherwise the rule-based "Adjust your X" hint, otherwise null.
+ * Centralises the AI/rule-based fallback so MatchFeedback's render path stays
+ * a single read.
+ */
+export function useCoachingText(matchResult: MatchResult | null): string | null {
+  const aiMode = useAiMode();
+  const aiTip = useAiCoaching((s) => s.currentTip);
+  if (aiMode && aiTip) return aiTip;
+  if (matchResult && matchResult.state !== 'matched') {
+    return describeWorstJoints(matchResult.worstJoints);
+  }
+  return null;
+}
+
 export function MatchFeedback(): React.JSX.Element | null {
   const selected = usePoseTarget((s) => s.selected);
   const matchResult = usePoseTarget((s) => s.matchResult);
@@ -65,13 +83,13 @@ export function MatchFeedback(): React.JSX.Element | null {
     transform: [{ scale: scale.value }],
   }));
 
+  const hint = useCoachingText(matchResult);
+
   if (!selected) return null;
 
   const fitScore = matchResult?.fitScore ?? 0;
   const percent = Math.round(fitScore * 100);
   const color = colorForState(state);
-  const hint =
-    matchResult && state !== 'matched' ? describeWorstJoints(matchResult.worstJoints) : null;
 
   return (
     <View style={styles.wrap} pointerEvents="none">

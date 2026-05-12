@@ -8,11 +8,13 @@ import {
   usePhotoOutput,
 } from 'react-native-vision-camera';
 
+import { useAiCoachingOrchestrator } from '../../ai/useAiCoachingOrchestrator';
 import { usePoseLandmarkerOutput } from '../../camera/usePoseLandmarkerOutput';
 import { matchPose } from '../../recommendation/poseMatch';
 import { useAiMode } from '../../state/aiMode';
 import { usePoseStream } from '../../state/poseStream';
 import { usePoseTarget } from '../../state/poseTarget';
+import { AskAiButton } from '../components/AskAiButton';
 import { CaptureButton } from '../components/CaptureButton';
 import { MatchFeedback } from '../components/MatchFeedback';
 import { MockPoseControls } from '../components/MockPoseControls';
@@ -55,6 +57,11 @@ export function CameraScreen(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [recapturing, setRecapturing] = useState(false);
   const aiMode = useAiMode();
+
+  // Phase E: AI coaching orchestrator. Watches matchResult + pose changes and
+  // fires Gemini coaching when the user is stuck or close-but-not-matching.
+  // No-op when aiMode is off. Exposes triggerManual for the Ask AI button.
+  const { triggerManual: triggerAiCoaching } = useAiCoachingOrchestrator(photoOutput);
 
   useEffect(() => {
     if (!hasPermission) {
@@ -134,6 +141,7 @@ export function CameraScreen(): React.JSX.Element {
       />
       <PoseTargetOverlay mirrored={false} />
       <MatchFeedback />
+      {aiMode && <AskAiButton onPress={triggerAiCoaching} />}
       <PoseSelector />
       <CaptureButton />
       {aiMode && <SmartSuggestionsButton photoOutput={photoOutput} />}
