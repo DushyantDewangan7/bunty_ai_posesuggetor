@@ -738,3 +738,11 @@ Navigation approach is custom (a 12-line Zustand store) rather than React Naviga
 Marketplace entry point is a new `MarketplaceButton` (🛍 emoji) mounted in `CameraScreen` directly below the existing `SettingsButton`, sharing the same circular dark-translucent styling (`insets.top + 58` vs `insets.top + 10`). The Settings → Pose Library section that an earlier draft of this work added was not shipped; Marketplace is the single canonical place to toggle library state.
 
 This is the architectural shell for Phase 8 creator content management — the same `activePoseIds`-keyed screen and pill interaction extend trivially to user-uploaded or third-party poses, with `ALL_POSE_IDS` becoming a union of bundled + creator IDs.
+
+### G40. Camera filters deferred (2026-05-13)
+
+Real-time color-matrix filters (B&W, Clarendon) were attempted but require swapping the native camera preview for a Skia-driven preview via `useFrameOutput` + `NativeBuffer→SkImage`. This conflicts with G14's Nitro analyzer-thread pose pipeline only superficially — both can coexist — but is substantial engineering: ~2–4 hours of frame-renderer integration, lifecycle re-validation, and perf work, plus one APK rebuild for `vision-camera-worklets` first-use.
+
+Filter state slice, persistence, and color matrices for B&W (BT.601) and Clarendon (matrix approximation) have been created at `src/state/filter.ts`, `src/state/filterPersistence.ts`, and `src/camera/filterMatrices.ts`. They are inert (not imported anywhere) until the preview pipeline is built.
+
+Two prior prompt attempts (N, then corrected N) failed at the architecture step because they assumed APIs that don't exist in vision-camera 5.x (`useSkiaFrameProcessor`, `frameProcessor` prop on `Camera`). The actual implementation requires `useFrameOutput` + `Skia.Image.MakeImageFromNativeBuffer` + a custom Skia preview canvas. This is documented for future work.
