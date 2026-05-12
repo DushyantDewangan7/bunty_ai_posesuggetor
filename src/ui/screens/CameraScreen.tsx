@@ -125,7 +125,7 @@ export function CameraScreen(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.container} >
+    <SafeAreaView style={styles.container}>
       <Camera
         style={StyleSheet.absoluteFill}
         device={device}
@@ -141,7 +141,8 @@ export function CameraScreen(): React.JSX.Element {
       <DebugOverlay />
       <SettingsButton
         style={{
-          top: insets.top + 10, right: insets.right + 10,
+          top: insets.top + 10,
+          right: insets.right + 10,
         }}
         onPress={() => setSettingsOpen(true)}
       />
