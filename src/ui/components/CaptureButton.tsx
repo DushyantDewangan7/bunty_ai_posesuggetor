@@ -1,58 +1,248 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef } from 'react';
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { validateForCapture } from '../../ml/poseValidation';
 import { usePoseStream } from '../../state/poseStream';
-import { CaptureNameDialog } from './CaptureNameDialog';
+import { useCustomPoses } from '../../state/customPoses';
 
-// Native side drops frames silently when MediaPipe finds no person (see
-// HybridPoseLandmarkerOutput.kt) so latestFrame can stay non-null forever
-// after the user leaves frame. Treat a frame older than this as "no pose".
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
+
+import type { CameraPhotoOutput } from 'react-native-vision-camera';
+
 const STALE_FRAME_MS = 500;
 
-export function CaptureButton(): React.JSX.Element {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [now, setNow] = useState(() => performance.now());
+interface Props {
+  photoOutput: CameraPhotoOutput | null;
+  onFlipCamera?: () => void;
+}
+
+export function CaptureButton({
+  photoOutput,
+  onFlipCamera,
+}: Props): React.JSX.Element {
   const latestFrame = usePoseStream((s) => s.latestFrame);
   const latestNormalized = usePoseStream((s) => s.latestNormalized);
 
-  useEffect(() => {
-    const id = setInterval(() => setNow(performance.now()), 250);
-    return () => clearInterval(id);
-  }, []);
+  const isCapturingRef = useRef(false);
 
-  const isStale = !latestFrame || now - latestFrame.timestamp > STALE_FRAME_MS;
-  const validation = isStale ? null : validateForCapture(latestFrame);
-  const canCapture =
-    validation?.valid === true &&
-    latestFrame?.landmarks != null &&
-    latestNormalized?.landmarks != null;
+  const handlePress = useCallback(async (): Promise<void> => {
+    if (isCapturingRef.current) return;
 
-  const handlePress = (): void => {
-    if (!canCapture) return;
-    setDialogOpen(true);
-  };
+    isCapturingRef.current = true;
+
+    try {
+      if (!photoOutput) {
+        Alert.alert('Camera Error', 'Camera is not ready.');
+        return;
+      }
+
+      // Snapshot pose data BEFORE async work
+      const frameSnapshot = latestFrame;
+      const normalizedSnapshot = latestNormalized;
+
+      const isStale =
+        !frameSnapshot ||
+        Date.now() - frameSnapshot.timestamp > STALE_FRAME_MS;
+
+      const validation = isStale
+        ? null
+        : validateForCapture(frameSnapshot);
+
+      const hasValidPose =
+        validation?.valid === true &&
+        frameSnapshot?.landmarks != null &&
+        normalizedSnapshot?.landmarks != null;
+
+      // Capture photo
+      const photo = await photoOutput.capturePhoto(
+        {
+          enableShutterSound: true,
+        },
+        {},
+      );
+
+      let tempPhotoPath: string | null = null;
+
+      try {
+        // Vision Camera temp file
+        if (photo.saveToTemporaryFileAsync) {
+          tempPhotoPath = await photo.saveToTemporaryFileAsync();
+        } else if ((photo as any)?.path) {
+          tempPhotoPath = (photo as any).path;
+        }
+      } finally {
+        if (photo.dispose) {
+          photo.dispose();
+        }
+      }
+
+      if (!tempPhotoPath) {
+        Alert.alert(
+          'Capture Failed',
+          'Could not get image path from camera output.',
+        );
+        return;
+      }
+
+      const formattedPhotoPath = tempPhotoPath.startsWith('file://')
+        ? tempPhotoPath
+        : `file://${tempPhotoPath}`;
+
+      // Create app directory
+      const dirPath = `${FileSystem.documentDirectory}ai_camera/`;
+
+      const dirInfo = await FileSystem.getInfoAsync(dirPath);
+
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(dirPath, {
+          intermediates: true,
+        });
+      }
+
+      const currentDate = new Date();
+
+      const autoName = `Pose_${currentDate.getFullYear()}${(
+        currentDate.getMonth() + 1
+      )
+        .toString()
+        .padStart(2, '0')}${currentDate
+          .getDate()
+          .toString()
+          .padStart(2, '0')}_${currentDate
+            .getHours()
+            .toString()
+            .padStart(2, '0')}${currentDate
+              .getMinutes()
+              .toString()
+              .padStart(2, '0')}${currentDate
+                .getSeconds()
+                .toString()
+                .padStart(2, '0')}`;
+
+      // Permanent local image path
+      const localImagePath = `${dirPath}${autoName}.jpg`;
+
+      // Copy image into app storage
+      await FileSystem.copyAsync({
+        from: formattedPhotoPath,
+        to: localImagePath,
+      });
+
+      // Create pose metadata
+      const capture = {
+        id: `capture-${Date.now()}`,
+        name: autoName,
+        category: 'standing' as const,
+        difficulty: 1 as const,
+
+        imagePath: localImagePath,
+
+        hasPose: hasValidPose,
+
+        imageLandmarks: frameSnapshot?.landmarks ?? [],
+        referenceLandmarks: normalizedSnapshot?.landmarks ?? [],
+
+        capturedAt: currentDate.toISOString(),
+
+        version: 1 as const,
+      };
+
+      // Save in Zustand
+      useCustomPoses.getState().add(capture);
+
+      // Log the captured object to the console for debugging
+      console.log('Captured Picture Details:', JSON.stringify(capture, null, 2));
+
+      // Save JSON metadata
+      const jsonPath = `${dirPath}${autoName}.json`;
+
+      await FileSystem.writeAsStringAsync(
+        jsonPath,
+        JSON.stringify(capture, null, 2),
+      );
+
+      // Request gallery permissions
+      const permission =
+        await MediaLibrary.requestPermissionsAsync();
+
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Gallery permission is required to save images.',
+        );
+        return;
+      }
+
+      // Save to gallery
+      const asset = await MediaLibrary.createAssetAsync(
+        localImagePath,
+      );
+
+      const albumName = 'AI Camera';
+
+      const existingAlbum =
+        await MediaLibrary.getAlbumAsync(albumName);
+
+      if (existingAlbum == null) {
+        await MediaLibrary.createAlbumAsync(
+          albumName,
+          asset,
+          false,
+        );
+      } else {
+        await MediaLibrary.addAssetsToAlbumAsync(
+          [asset],
+          existingAlbum,
+          false,
+        );
+      }
+
+      Alert.alert(
+        'Saved',
+        `Photo saved successfully.\n\n${autoName}.jpg`,
+      );
+    } catch (err) {
+      console.error('Capture error:', err);
+
+      Alert.alert(
+        'Capture Error',
+        err instanceof Error ? err.message : String(err),
+      );
+    } finally {
+      isCapturingRef.current = false;
+    }
+  }, [photoOutput, latestFrame, latestNormalized]);
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
-      <Pressable
-        onPress={handlePress}
-        disabled={!canCapture}
-        style={[styles.button, !canCapture && styles.buttonDisabled]}
+      <TouchableOpacity
+        onPress={() => alert('Gallery view coming soon!')}
+        style={styles.sideButton}
+        activeOpacity={0.7}
       >
-        <Text style={styles.icon}>📌</Text>
-        <Text style={styles.label}>Capture</Text>
-      </Pressable>
-      {dialogOpen &&
-      canCapture &&
-      latestFrame?.landmarks != null &&
-      latestNormalized?.landmarks != null ? (
-        <CaptureNameDialog
-          imageLandmarks={latestFrame.landmarks}
-          normalizedLandmarks={latestNormalized.landmarks}
-          onClose={() => setDialogOpen(false)}
-        />
-      ) : null}
+        <Text style={styles.sideIcon}>🖼️</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={handlePress}
+        style={styles.button}
+        activeOpacity={0.8}
+      />
+
+      <TouchableOpacity
+        onPress={onFlipCamera}
+        style={styles.sideButton}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.sideIcon}>↻</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -60,33 +250,41 @@ export function CaptureButton(): React.JSX.Element {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    right: 16,
-    top: '50%',
-    marginTop: -36,
+    bottom: 24,
+    left: 0,
+    right: 0,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    gap: 48,
   },
+
   button: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#FF6B35',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.85)',
+
+    backgroundColor: '#FFFFFF',
+
+    borderWidth: 4,
+    borderColor: '#DADADA',
+  },
+
+  sideButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+
+    backgroundColor: 'rgba(0,0,0,0.5)',
+
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonDisabled: {
-    backgroundColor: 'rgba(80, 80, 80, 0.6)',
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  icon: {
+
+  sideIcon: {
+    color: '#FFFFFF',
     fontSize: 22,
-    lineHeight: 26,
-  },
-  label: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 2,
-    letterSpacing: 0.4,
   },
 });

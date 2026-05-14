@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 84,
+    bottom: 110,
   },
   scrollContent: {
     paddingHorizontal: 12,

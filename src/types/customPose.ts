@@ -16,6 +16,10 @@ export interface CapturedPose {
   referenceLandmarks: PoseLandmark[];
   /** ISO timestamp of capture */
   capturedAt: string;
+  /** Optional path to the full saved photo */
+  imagePath?: string;
+  /** Whether the photo actually contained a valid pose */
+  hasPose?: boolean;
   /** Schema version for forward compat */
   version: 1;
 }

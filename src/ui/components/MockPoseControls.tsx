@@ -18,7 +18,7 @@ export function MockPoseControls(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 32,
+    bottom: 230,
     left: 0,
     right: 0,
     flexDirection: 'row',

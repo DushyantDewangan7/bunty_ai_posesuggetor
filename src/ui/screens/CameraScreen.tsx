@@ -41,7 +41,8 @@ const handleOpenSettings = (): void => {
 
 export function CameraScreen(): React.JSX.Element {
   const { hasPermission, requestPermission } = useCameraPermission();
-  const device = useCameraDevice('back');
+  const [cameraPosition, setCameraPosition] = useState<'front' | 'back'>('back');
+  const device = useCameraDevice(cameraPosition);
 
   // Output-attached MediaPipe pose detector. Inference runs on the analyzer
   // thread inside HybridPoseLandmarkerOutput (no worklet, no JSI host-function
@@ -145,7 +146,10 @@ export function CameraScreen(): React.JSX.Element {
       <MatchFeedback />
       {aiMode && <AskAiButton onPress={triggerAiCoaching} />}
       <PoseSelector />
-      <CaptureButton />
+      <CaptureButton 
+        photoOutput={photoOutput} 
+        onFlipCamera={() => setCameraPosition(p => p === 'back' ? 'front' : 'back')} 
+      />
       {aiMode && <SmartSuggestionsButton photoOutput={photoOutput} />}
       <MockPoseControls />
       <DebugOverlay />
